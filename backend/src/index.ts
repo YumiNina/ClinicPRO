@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import express, { type Express, type Request, type Response } from 'express';
 import { authRoutes } from './modules/auth/index.js';
 import { AppDataSource } from './config/database.js';
-import authMiddleware from './middleware/auth.middleware.js';
+import { authMiddleware } from "./middleware/auth.middleware";
 
 dotenv.config();
 

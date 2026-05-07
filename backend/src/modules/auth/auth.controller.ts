@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
-
 import { z } from 'zod';
 
 import {
-  LoginSchema,
-  RecoverPasswordSchema,
-  RegisterSchema,
-} from '../schemas/auth.schema.js';
-import * as AuthService from '../services/auth.service.js';
+  loginSchema,
+  registerSchema,
+  recoverPasswordSchema,
+} from './auth.schema';
+
+import { authService } from './auth.service';
 
 type ZodIssue = z.ZodIssue;
 
@@ -16,8 +16,8 @@ type ZodIssue = z.ZodIssue;
 // ==========================================
 export const login = async (req: Request, res: Response) => {
   try {
-    // Validar input con Zod
-    const validation = LoginSchema.safeParse(req.body);
+    const validation = loginSchema.safeParse(req.body);
+
     if (!validation.success) {
       return res.status(400).json({
         success: false,
@@ -31,8 +31,11 @@ export const login = async (req: Request, res: Response) => {
 
     const { email, password } = validation.data;
 
-    // Validar credenciales
-    const authData = await AuthService.validateUserCredentials(email, password);
+    const authData = await authService.validateUserCredentials(
+      email,
+      password
+    );
+
     return res.status(200).json({
       success: true,
       message: 'Bienvenido al sistema Salud Total',
@@ -54,7 +57,7 @@ export const login = async (req: Request, res: Response) => {
 
     return res.status(statusCode).json({
       success: false,
-      message: message,
+      message,
     });
   }
 };
@@ -64,8 +67,8 @@ export const login = async (req: Request, res: Response) => {
 // ==========================================
 export const register = async (req: Request, res: Response) => {
   try {
-    // Validar input con Zod
-    const validation = RegisterSchema.safeParse(req.body);
+    const validation = registerSchema.safeParse(req.body);
+
     if (!validation.success) {
       return res.status(400).json({
         success: false,
@@ -79,8 +82,12 @@ export const register = async (req: Request, res: Response) => {
 
     const { name, email, password, phone } = validation.data;
 
-    // Crear usuario
-    const newUser = await AuthService.registerUser(name, email, password, phone);
+    const newUser = await authService.registerUser(
+      name,
+      email,
+      password,
+      phone
+    );
 
     return res.status(201).json({
       success: true,
@@ -88,7 +95,8 @@ export const register = async (req: Request, res: Response) => {
       data: newUser,
     });
   } catch (error: unknown) {
-    console.error("ERROR EN REGISTRO:", error);
+    console.error('ERROR EN REGISTRO:', error);
+
     let statusCode = 500;
     let message = 'Error al registrar usuario';
 
@@ -104,7 +112,7 @@ export const register = async (req: Request, res: Response) => {
 
     return res.status(statusCode).json({
       success: false,
-      message: message,
+      message,
     });
   }
 };
@@ -112,10 +120,9 @@ export const register = async (req: Request, res: Response) => {
 // ==========================================
 // LOGOUT
 // ==========================================
-export const logout = async (req: Request, res: Response) => {
+export const logout = async (_req: Request, res: Response) => {
   try {
-    // En una app real, aquí invalidarías el token en la BD
-    await AuthService.logout();
+    await authService.logout();
 
     return res.status(200).json({
       success: true,
@@ -133,10 +140,13 @@ export const logout = async (req: Request, res: Response) => {
 // ==========================================
 // RECUPERAR CONTRASEÑA
 // ==========================================
-export const recoverPassword = async (req: Request, res: Response) => {
+export const recoverPassword = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    // Validar input con Zod
-    const validation = RecoverPasswordSchema.safeParse(req.body);
+    const validation = recoverPasswordSchema.safeParse(req.body);
+
     if (!validation.success) {
       return res.status(400).json({
         success: false,
@@ -150,45 +160,51 @@ export const recoverPassword = async (req: Request, res: Response) => {
 
     const { email } = validation.data;
 
-    // Procesar recuperación
-    await AuthService.recoverPassword(email);
+    await authService.recoverPassword(email);
 
     return res.status(200).json({
       success: true,
-      message: 'Instrucciones para recuperar contraseña enviadas al email',
+      message:
+        'Instrucciones para recuperar contraseña enviadas al email',
       data: { email },
     });
   } catch (error: unknown) {
     let statusCode = 500;
     let message = 'Error al recuperar contraseña';
 
-    if (error instanceof Error && error.message === 'USER_NOT_FOUND') {
+    if (
+      error instanceof Error &&
+      error.message === 'USER_NOT_FOUND'
+    ) {
       statusCode = 404;
       message = 'El usuario no está registrado';
     }
 
     return res.status(statusCode).json({
       success: false,
-      message: message,
+      message,
     });
   }
 };
 
 // ==========================================
-// OBTENER PERFIL (Requiere autenticación)
+// OBTENER PERFIL
 // ==========================================
-export const getProfile = async (req: Request, res: Response) => {
+export const getProfile = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const userId = req.user?.id;
+    const user = (req as any).user;
 
-    if (!userId) {
+    if (!user?.id) {
       return res.status(401).json({
         success: false,
         message: 'Usuario no autenticado',
       });
     }
 
-    const profile = await AuthService.getProfile(userId);
+    const profile = await authService.getProfile(user.id);
 
     return res.status(200).json({
       success: true,
