@@ -11,9 +11,6 @@ import { authService } from './auth.service';
 
 type ZodIssue = z.ZodIssue;
 
-// ==========================================
-// LOGIN
-// ==========================================
 export const login = async (req: Request, res: Response) => {
   try {
     const validation = loginSchema.safeParse(req.body);
@@ -38,33 +35,17 @@ export const login = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Bienvenido al sistema Salud Total',
+      message: 'Bienvenido al sistema',
       data: authData,
     });
   } catch (error: unknown) {
-    let statusCode = 401;
-    let message = 'Credenciales incorrectas';
-
-    if (error instanceof Error) {
-      if (error.message === 'USER_NOT_FOUND') {
-        statusCode = 404;
-        message = 'El usuario no está registrado';
-      } else if (error.message === 'INVALID_PASSWORD') {
-        statusCode = 401;
-        message = 'Contraseña incorrecta';
-      }
-    }
-
-    return res.status(statusCode).json({
+    return res.status(401).json({
       success: false,
-      message,
+      message: 'Credenciales incorrectas',
     });
   }
 };
 
-// ==========================================
-// REGISTRO
-// ==========================================
 export const register = async (req: Request, res: Response) => {
   try {
     const validation = registerSchema.safeParse(req.body);
@@ -73,16 +54,12 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         message: 'Validación fallida',
-        errors: validation.error.issues.map((e: ZodIssue) => ({
-          field: e.path.join('.'),
-          message: e.message,
-        })),
       });
     }
 
     const { name, email, password, phone } = validation.data;
 
-    const newUser = await authService.registerUser(
+    const user = await authService.registerUser(
       name,
       email,
       password,
@@ -91,55 +68,23 @@ export const register = async (req: Request, res: Response) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Usuario registrado exitosamente',
-      data: newUser,
+      data: user,
     });
-  } catch (error: unknown) {
-    console.error('ERROR EN REGISTRO:', error);
-
-    let statusCode = 500;
-    let message = 'Error al registrar usuario';
-
-    if (error instanceof Error) {
-      if (error.message === 'EMAIL_ALREADY_EXISTS') {
-        statusCode = 409;
-        message = 'El email ya está registrado';
-      } else if (error.message === 'INVALID_EMAIL') {
-        statusCode = 400;
-        message = 'Email inválido';
-      }
-    }
-
-    return res.status(statusCode).json({
-      success: false,
-      message,
-    });
-  }
-};
-
-// ==========================================
-// LOGOUT
-// ==========================================
-export const logout = async (_req: Request, res: Response) => {
-  try {
-    await authService.logout();
-
-    return res.status(200).json({
-      success: true,
-      message: 'Sesión cerrada exitosamente',
-      data: {},
-    });
-  } catch (error: unknown) {
+  } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Error al cerrar sesión',
+      message: 'Error al registrar usuario',
     });
   }
 };
 
-// ==========================================
-// RECUPERAR CONTRASEÑA
-// ==========================================
+export const logout = async (_req: Request, res: Response) => {
+  return res.status(200).json({
+    success: true,
+    message: 'Sesión cerrada',
+  });
+};
+
 export const recoverPassword = async (
   req: Request,
   res: Response
@@ -151,10 +96,6 @@ export const recoverPassword = async (
       return res.status(400).json({
         success: false,
         message: 'Validación fallida',
-        errors: validation.error.issues.map((e: ZodIssue) => ({
-          field: e.path.join('.'),
-          message: e.message,
-        })),
       });
     }
 
@@ -164,32 +105,16 @@ export const recoverPassword = async (
 
     return res.status(200).json({
       success: true,
-      message:
-        'Instrucciones para recuperar contraseña enviadas al email',
-      data: { email },
+      message: 'Correo enviado',
     });
-  } catch (error: unknown) {
-    let statusCode = 500;
-    let message = 'Error al recuperar contraseña';
-
-    if (
-      error instanceof Error &&
-      error.message === 'USER_NOT_FOUND'
-    ) {
-      statusCode = 404;
-      message = 'El usuario no está registrado';
-    }
-
-    return res.status(statusCode).json({
+  } catch (error) {
+    return res.status(500).json({
       success: false,
-      message,
+      message: 'Error recuperando contraseña',
     });
   }
 };
 
-// ==========================================
-// OBTENER PERFIL
-// ==========================================
 export const getProfile = async (
   req: Request,
   res: Response
@@ -200,7 +125,7 @@ export const getProfile = async (
     if (!user?.id) {
       return res.status(401).json({
         success: false,
-        message: 'Usuario no autenticado',
+        message: 'No autenticado',
       });
     }
 
@@ -210,10 +135,10 @@ export const getProfile = async (
       success: true,
       data: profile,
     });
-  } catch (error: unknown) {
+  } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Error al obtener perfil',
+      message: 'Error obteniendo perfil',
     });
   }
 };

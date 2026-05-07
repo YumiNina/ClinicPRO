@@ -1,28 +1,23 @@
 import 'reflect-metadata';
 import dotenv from 'dotenv';
-import { createApp, initializeDatabase } from './index.js';
+import express from 'express';
+import cors from 'cors';
 
 dotenv.config();
 
-const PORT = process.env.BACKEND_PORT || 3000;
+const app = express();
 
-const startServer = async (): Promise<void> => {
-  try {
-    // Initialize database
-    await initializeDatabase();
+app.use(cors());
+app.use(express.json());
 
-    // Create Express app
-    const app = createApp();
+app.get('/', (_req, res) => {
+  res.json({
+    message: 'ClinicPRO Backend Running',
+  });
+});
 
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`🚀 ClinicPRO API running on http://localhost:${PORT}`);
-      console.log(`📚 Health check: http://localhost:${PORT}/api/health`);
-    });
-  } catch (error) {
-    console.error('💥 Server startup failed:', error);
-    process.exit(1);
-  }
-};
+const PORT = process.env.PORT || 3000;
 
-startServer();
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
