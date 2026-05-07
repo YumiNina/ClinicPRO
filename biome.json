@@ -1,0 +1,55 @@
+{
+  "files": {
+    "ignoreUnknown": false,
+    "ignore": ["node_modules", "dist", "build", ".next", "out", "coverage"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf",
+    "quoteStyle": "single",
+    "quoteProperties": "asNeeded",
+    "trailingCommas": "es5",
+    "semicolons": "always"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noAssignInExpressions": "warn",
+        "noConsoleLog": "warn",
+        "noDebugger": "error",
+        "noDoubleEquals": "error",
+        "noImplicitAnyLet": "error",
+        "noUnsafeDeclarationMerging": "error"
+      },
+      "correctness": {
+        "noConstAssign": "error",
+        "noConstantCondition": "error",
+        "noUnreachable": "error"
+      },
+      "style": {
+        "noImplicitBoolean": "warn",
+        "useConst": "error"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "semicolons": "always",
+      "quoteStyle": "single"
+    },
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    }
+  },
+  "typescript": {
+    "formatter": {
+      "semicolons": "always",
+      "quoteStyle": "single"
+    }
+  }
+}

@@ -1,0 +1,68 @@
+version: '3.8';
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: clinicpro-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-clinicpro_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-clinicpro_secure_password_2026}
+      POSTGRES_DB: ${DB_NAME:-clinicpro_db}
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=en_US.UTF-8'
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/config/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - clinicpro-network
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-clinicpro_user}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: clinicpro-backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${BACKEND_PORT:-3000}
+      DATABASE_URL: postgresql://${DB_USER:-clinicpro_user}:${DB_PASSWORD:-clinicpro_secure_password_2026}@postgres:5432/${DB_NAME:-clinicpro_db}
+      JWT_SECRET: ${JWT_SECRET:-tu_clave_secreta_super_segura_2026_cambiar_en_produccion}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - clinicpro-network
+    restart: unless-stopped
+
+  # Frontend (optional, for production deployment)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000}
+    container_name: clinicpro-frontend
+    ports:
+      - '5174:80'
+    networks:
+      - clinicpro-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  clinicpro-network:
+    driver: bridge
