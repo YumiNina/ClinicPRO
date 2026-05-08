@@ -1,50 +1,12 @@
 import { Request, Response } from 'express';
-import { z } from 'zod';
 
 import {
   loginSchema,
+  refreshSchema,
   registerSchema,
-  recoverPasswordSchema,
 } from './auth.schema';
 
 import { authService } from './auth.service';
-
-type ZodIssue = z.ZodIssue;
-
-export const login = async (req: Request, res: Response) => {
-  try {
-    const validation = loginSchema.safeParse(req.body);
-
-    if (!validation.success) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validación fallida',
-        errors: validation.error.issues.map((e: ZodIssue) => ({
-          field: e.path.join('.'),
-          message: e.message,
-        })),
-      });
-    }
-
-    const { email, password } = validation.data;
-
-    const authData = await authService.validateUserCredentials(
-      email,
-      password
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: 'Bienvenido al sistema',
-      data: authData,
-    });
-  } catch (error: unknown) {
-    return res.status(401).json({
-      success: false,
-      message: 'Credenciales incorrectas',
-    });
-  }
-};
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -53,92 +15,127 @@ export const register = async (req: Request, res: Response) => {
     if (!validation.success) {
       return res.status(400).json({
         success: false,
-        message: 'Validación fallida',
+        message: 'Datos inválidos',
+        errors: validation.error.flatten(),
       });
     }
 
-    const { name, email, password, phone } = validation.data;
-
-    const user = await authService.registerUser(
-      name,
-      email,
-      password,
-      phone
-    );
+    const user = await authService.register(validation.data);
 
     return res.status(201).json({
       success: true,
+      message: 'Usuario registrado correctamente',
       data: user,
     });
-  } catch (error) {
-    return res.status(500).json({
+  } catch (_error) {
+    return res.status(400).json({
       success: false,
-      message: 'Error al registrar usuario',
+      message: 'No se pudo registrar usuario',
     });
   }
 };
 
-export const logout = async (_req: Request, res: Response) => {
-  return res.status(200).json({
-    success: true,
-    message: 'Sesión cerrada',
-  });
-};
-
-export const recoverPassword = async (
-  req: Request,
-  res: Response
-) => {
+export const login = async (req: Request, res: Response) => {
   try {
-    const validation = recoverPasswordSchema.safeParse(req.body);
+    const validation = loginSchema.safeParse(req.body);
 
     if (!validation.success) {
       return res.status(400).json({
         success: false,
-        message: 'Validación fallida',
+        message: 'Datos inválidos',
       });
     }
 
-    const { email } = validation.data;
-
-    await authService.recoverPassword(email);
+    const data = await authService.login(
+      validation.data.email,
+      validation.data.password
+    );
 
     return res.status(200).json({
       success: true,
-      message: 'Correo enviado',
+      message: 'Login exitoso',
+      data,
     });
-  } catch (error) {
-    return res.status(500).json({
+  } catch (_error) {
+    return res.status(401).json({
       success: false,
-      message: 'Error recuperando contraseña',
+      message: 'Email o contraseña incorrectos',
     });
   }
 };
 
-export const getProfile = async (
-  req: Request,
-  res: Response
-) => {
+export const refresh = async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
+    const validation = refreshSchema.safeParse(req.body);
 
-    if (!user?.id) {
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token requerido',
+      });
+    }
+
+    const data = await authService.refresh(validation.data.refreshToken);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Tokens renovados correctamente',
+      data,
+    });
+  } catch (_error) {
+    return res.status(401).json({
+      success: false,
+      message: 'Refresh token inválido o expirado',
+    });
+  }
+};
+
+export const logout = async (req: Request, res: Response) => {
+  try {
+    const validation = refreshSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Refresh token requerido',
+      });
+    }
+
+    await authService.logout(validation.data.refreshToken);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Sesión cerrada correctamente',
+    });
+  } catch (_error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Error al cerrar sesión',
+    });
+  }
+};
+
+export const me = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
       return res.status(401).json({
         success: false,
         message: 'No autenticado',
       });
     }
 
-    const profile = await authService.getProfile(user.id);
+    const profile = await authService.getProfile(userId);
 
     return res.status(200).json({
       success: true,
       data: profile,
     });
-  } catch (error) {
+  } catch (_error) {
     return res.status(500).json({
       success: false,
-      message: 'Error obteniendo perfil',
+      message: 'Error al obtener perfil',
     });
   }
 };

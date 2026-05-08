@@ -1,157 +1,175 @@
-import { Lock, Mail } from 'lucide-react';
+import axios from 'axios';
+import { Activity, Lock, Mail } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { toast } from 'sonner';
 import { API_URLS } from '../../config/api-config';
 import { useAuth } from '../../hooks/useAuth';
-import { Button } from '../components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '../components/ui/card';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
 
-export default function Login() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
+const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const { login } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password) {
-      toast.error('Por favor completa todos los campos');
-      return;
-    }
-
-    setLoading(true);
-
     try {
-      const response = await fetch(`${API_URLS.auth}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      const response = await axios.post(`${API_URLS.auth}/auth/login`, {
+        email,
+        password,
       });
 
-      const data = await response.json();
+      const { token, user } = response.data;
 
-      if (!response.ok) {
-        throw new Error(data.message || data.error || 'Credenciales incorrectas');
-      }
+      login(token, user);
 
-      const token = data.token || data.session?.access_token || 'real-jwt-token';
-      const user = data.user || data.data?.user || data;
-
-      const userRole = user.role || user.rol || 'patient';
-      const userName = user.name || user.nombre || user.fullName || email.split('@')[0];
-      const userId = user.id || user.usuario_id || user.uid;
-
-      const userToSave = {
-        id: userId,
-        name: userName,
-        role: userRole,
-        email: user.email || email,
-      };
-
-      localStorage.setItem('currentUser', JSON.stringify(userToSave));
-      login(token, userToSave);
-
-      toast.success('¡Bienvenido/a ' + userName + '!');
-
-      setTimeout(() => {
-        navigate('/' + userRole);
-      }, 500);
-    } catch (error: any) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Error al iniciar sesión. Revisa tus credenciales.');
-      setLoading(false);
+      alert(`Bienvenido ${user.name}`);
+    } catch (_error) {
+      alert('Email o contraseña incorrectos');
     }
   };
 
   return (
-    <Card className="shadow-lg border border-gray-200 bg-white">
-      <CardHeader className="space-y-1 pb-6 pt-6">
-        <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
-        <CardDescription>Ingrese sus credenciales para acceder al sistema</CardDescription>
-      </CardHeader>
+    <div className="flex min-h-screen bg-[#0f172a]">
+      {/* LEFT SIDE */}
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-16 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-transparent" />
 
-      <form onSubmit={handleLogin}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-              Correo Electrónico
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="usuario@hospital.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-9 h-11"
-                required
-              />
+        <div className="relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="bg-cyan-500/20 p-4 rounded-3xl backdrop-blur-xl border border-cyan-400/20">
+              <Activity className="w-10 h-10 text-cyan-400" />
+            </div>
+
+            <div>
+              <h1 className="text-5xl font-black text-white tracking-tight">
+                CLINIC PRO
+              </h1>
+
+              <p className="text-cyan-300 mt-2 text-lg">
+                Soluciones Médicas Inteligentes
+              </p>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-              Contraseña
-            </Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-9 h-11"
-                required
-              />
+          <div className="mt-24 space-y-6">
+            <h2 className="text-4xl font-bold text-white leading-tight">
+              Portal de Gestión Clínica y Administrativa
+            </h2>
+
+            <p className="text-slate-400 text-lg max-w-xl">
+              Plataforma segura para administración hospitalaria,
+              expedientes clínicos, pacientes y citas médicas.
+            </p>
+          </div>
+        </div>
+
+        <div className="relative z-10 flex gap-4 flex-wrap">
+          <div className="px-5 py-2 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 text-sm">
+            Administrador
+          </div>
+
+          <div className="px-5 py-2 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 text-sm">
+            Recepcionista
+          </div>
+
+          <div className="px-5 py-2 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 text-sm">
+            Médico
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT SIDE */}
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <div className="bg-slate-900/70 border border-slate-700 backdrop-blur-2xl rounded-3xl shadow-2xl p-8">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-white">
+                Iniciar Sesión
+              </h2>
+
+              <p className="text-slate-400 mt-2">
+                Ingrese sus credenciales para acceder al sistema
+              </p>
             </div>
-          </div>
 
-          <div className="text-right">
-            <Link
-              to="/recover-password"
-              className="text-sm text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors"
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="text-sm text-slate-300 mb-2 block">
+                  Correo Electrónico
+                </label>
+
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+
+                  <input
+                    type="email"
+                    placeholder="usuario@clinicpro.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-4 text-white outline-none focus:ring-2 focus:ring-cyan-500 transition"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm text-slate-300 mb-2 block">
+                  Contraseña
+                </label>
+
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-12 pr-4 py-4 text-white outline-none focus:ring-2 focus:ring-cyan-500 transition"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="text-cyan-400 text-sm hover:text-cyan-300 transition"
+                >
+                  ¿Olvidó su contraseña?
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-white font-semibold py-4 rounded-xl transition-all duration-300 shadow-lg shadow-cyan-500/20"
+              >
+                Iniciar Sesión
+              </button>
+            </form>
+
+            <div className="flex items-center gap-4 my-6">
+              <div className="h-px bg-slate-700 flex-1" />
+              <span className="text-slate-500 text-sm">o continuar con</span>
+              <div className="h-px bg-slate-700 flex-1" />
+            </div>
+
+            <button
+              type="button"
+              className="w-full bg-white hover:bg-slate-100 text-slate-900 font-medium py-4 rounded-xl transition"
             >
-              ¿Olvidó su contraseña?
-            </Link>
+              Continuar con Google
+            </button>
+
+            <p className="text-center text-slate-400 text-sm mt-6">
+              © 2026 CLINIC PRO — Plataforma Médica Inteligente
+            </p>
           </div>
-        </CardContent>
-
-        <CardFooter className="flex flex-col gap-4 pt-2 pb-6">
-          <Button
-            type="submit"
-            className="w-full h-11 bg-blue-600 hover:bg-blue-700"
-            disabled={loading}
-          >
-            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-          </Button>
-
-          <p className="text-sm text-center text-gray-600">
-            ¿No tiene cuenta?{' '}
-            <Link
-              to="/register"
-              className="text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors"
-            >
-              Regístrese aquí
-            </Link>
-          </p>
-        </CardFooter>
-      </form>
-    </Card>
+        </div>
+      </div>
+    </div>
   );
-}
+};
+
+export default Login;

@@ -1,53 +1,51 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-        email: string;
-        role: string;
-      };
-    }
-  }
+export interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    rol: string;
+  };
 }
 
 export const authMiddleware = (
-  req: Request,
+  req: AuthRequest,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    // Obtener token del header Authorization: Bearer TOKEN
     const authHeader = req.headers.authorization;
-    const token = authHeader?.split(' ')[1];
 
-    if (!token) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
         message: 'Token no proporcionado',
       });
     }
 
-    // Verificar y decodificar JWT
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
+    const token = authHeader.split(' ')[1];
+
+    const secret = process.env.JWT_ACCESS_SECRET;
+
+    if (!secret) {
       return res.status(500).json({
         success: false,
-        message: 'Error interno del servidor',
+        message: 'JWT secret no configurado',
       });
     }
 
-    const decoded = jwt.verify(token, jwtSecret) as {
+    const decoded = jwt.verify(token, secret) as {
       id: string;
       email: string;
-      role: string;
+      rol: string;
     };
+
     req.user = decoded;
+
     next();
-  } catch (error) {
-    return res.status(403).json({
+  } catch (_error) {
+    return res.status(401).json({
       success: false,
       message: 'Token inválido o expirado',
     });

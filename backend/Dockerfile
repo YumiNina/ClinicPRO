@@ -1,15 +1,13 @@
-FROM node:20-alpine
+FROM node:20
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+
+RUN npm install
 
 COPY . .
-RUN npm run build
 
 EXPOSE 3001
 
-RUN ls -la dist/server.js || echo "ALERTA: No se encontro el archivo server.js"
-
-CMD ["node", "dist/server.js"]
+CMD ["npm", "run", "dev"]

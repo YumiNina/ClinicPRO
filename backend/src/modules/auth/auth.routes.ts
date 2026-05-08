@@ -1,51 +1,21 @@
 import { Router } from 'express';
+
 import {
-  getProfile,
   login,
   logout,
-  recoverPassword,
+  me,
+  refresh,
   register,
-} from './auth.controller.js';
-import { authMiddleware } from '../../middleware/auth.middleware.js';
-import { requireRole } from '../../middleware/roleMiddleware.js';
+} from './auth.controller';
+
+import { authMiddleware } from '../../middleware/auth.middleware';
 
 const router = Router();
 
-// ==========================================
-// RUTAS PÚBLICAS (Sin autenticación)
-// ==========================================
-
-// Iniciar sesión
-router.post('/login', login);
-
-// Registrarse
 router.post('/register', register);
-
-// Recuperar contraseña
-router.post('/recover-password', recoverPassword);
-
-// ==========================================
-// RUTAS PROTEGIDAS (Con autenticación)
-// ==========================================
-
-// Obtener perfil (cualquier usuario logueado)
-router.get('/profile', authMiddleware, getProfile);
-
-// Logout (cualquier usuario logueado)
-router.post('/logout', authMiddleware, logout);
-
-// ==========================================
-// RUTAS POR ROL
-// ==========================================
-
-// Solo ADMIN
-router.get(
-  '/admin/users',
-  authMiddleware,
-  requireRole(['ADMIN']),
-  (req, res) => {
-    res.json({ success: true, message: 'Acceso a gestión de usuarios' });
-  },
-);
+router.post('/login', login);
+router.post('/refresh', refresh);
+router.post('/logout', logout);
+router.get('/me', authMiddleware, me);
 
 export default router;

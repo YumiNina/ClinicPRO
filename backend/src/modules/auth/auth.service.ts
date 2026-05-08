@@ -1,140 +1,181 @@
-import { createClient } from '@supabase/supabase-js';
-import bcryptjs from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-dotenv.config();
+import bcrypt from 'bcryptjs';
+import { v4 as uuidv4 } from 'uuid';
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from '../../config/supabase';
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from '../../utils/jwt';
 
-export const validateUserCredentials = async (
-  email: string,
-  password: string,
-) => {
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email)
-    .single();
+type TokenPayload = {
+  id: string;
+  email: string;
+  rol: string;
+};
 
-  if (error || !user) {
-    throw new Error('USER_NOT_FOUND');
-  }
+export const authService = {
+  async register(data: {
+    nombre_completo: string;
+    email: string;
+    password: string;
+    rol: string;
+  }) {
+    const { data: existingUser } = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('email', data.email)
+      .maybeSingle();
 
-  const isPasswordValid = await bcryptjs.compare(password, user.password);      
-  if (!isPasswordValid) {
-    throw new Error('INVALID_PASSWORD');
-  }
-  const jwtSecret = process.env.JWT_SECRET || 'default_secret_key';
-  const token = jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
-    jwtSecret,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' },
-  );
+    if (existingUser) {
+      throw new Error('INVALID_REGISTER');
+    }
 
-  return {
-    user: {
+    const password_hash = await bcrypt.hash(data.password, 10);
+
+    const { data: newUser, error } = await supabase
+      .from('usuarios')
+      .insert({
+        id: uuidv4(),
+        nombre_completo: data.nombre_completo,
+        email: data.email,
+        password_hash,
+        rol: data.rol,
+        activo: true,
+      })
+      .select('id, nombre_completo, email, rol, activo, created_at')
+      .single();
+
+    if (error) throw error;
+
+    return newUser;
+  },
+
+  async login(email: string, password: string) {
+    const { data: user } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('email', email)
+      .eq('activo', true)
+      .maybeSingle();
+
+    if (!user) {
+      throw new Error('INVALID_CREDENTIALS');
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password_hash
+    );
+
+    if (!isPasswordValid) {
+      throw new Error('INVALID_CREDENTIALS');
+    }
+
+    const payload: TokenPayload = {
       id: user.id,
-      name: user.name,
       email: user.email,
-      role: user.role,
-    },
-    token,
-  };
+      rol: user.rol,
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await supabase.from('sesiones').insert({
+      id: uuidv4(),
+      usuario_id: user.id,
+      token_refresco: refreshToken,
+      expira_en: expiresAt.toISOString(),
+      revocado: false,
+    });
+
+    await supabase
+      .from('usuarios')
+      .update({ ultimo_login: new Date().toISOString() })
+      .eq('id', user.id);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        nombre_completo: user.nombre_completo,
+        email: user.email,
+        rol: user.rol,
+      },
+    };
+  },
+
+  async refresh(oldRefreshToken: string) {
+    const decoded = verifyRefreshToken(oldRefreshToken) as TokenPayload;
+
+    const { data: session } = await supabase
+      .from('sesiones')
+      .select('*')
+      .eq('token_refresco', oldRefreshToken)
+      .eq('revocado', false)
+      .maybeSingle();
+
+    if (!session) {
+      throw new Error('INVALID_REFRESH_TOKEN');
+    }
+
+    if (session.expira_en && new Date(session.expira_en) < new Date()) {
+      throw new Error('REFRESH_TOKEN_EXPIRED');
+    }
+
+    await supabase
+      .from('sesiones')
+      .update({ revocado: true })
+      .eq('id', session.id);
+
+    const payload: TokenPayload = {
+      id: decoded.id,
+      email: decoded.email,
+      rol: decoded.rol,
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    await supabase.from('sesiones').insert({
+      id: uuidv4(),
+      usuario_id: decoded.id,
+      token_refresco: refreshToken,
+      expira_en: expiresAt.toISOString(),
+      revocado: false,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+    };
+  },
+
+  async logout(refreshToken: string) {
+    await supabase
+      .from('sesiones')
+      .update({ revocado: true })
+      .eq('token_refresco', refreshToken);
+
+    return true;
+  },
+
+  async getProfile(userId: string) {
+    const { data: user, error } = await supabase
+      .from('usuarios')
+      .select('id, nombre_completo, email, rol, activo, ultimo_login, created_at')
+      .eq('id', userId)
+      .single();
+
+    if (error) throw error;
+
+    return user;
+  },
 };
-
-export const registerUser = async (
-  name: string,
-  email: string,
-  password: string,
-  phone?: string,
-) => {
-
-  const { data: existingUser } = await supabase
-    .from('users')
-    .select('id')
-    .eq('email', email)
-    .single();
-
-  if (existingUser) {
-    throw new Error('EMAIL_ALREADY_EXISTS');
-  }
-  const hashedPassword = await bcryptjs.hash(password, 10);
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-
-  const { data: user, error: insertError } = await supabase
-    .from('users')
-    .insert([
-      { 
-        id, 
-        email, 
-        password: hashedPassword, 
-        name, 
-        phone: phone || null, 
-        role: 'PATIENT', 
-        createdAt: now, 
-        updatedAt: now 
-      }
-    ])
-    .select()
-    .single();
-
-  if (insertError || !user) {
-    console.error('SUPABASE ERROR:', insertError);
-    throw new Error('ERROR_CREATING_USER');
-  }
-
-  const jwtSecret = process.env.JWT_SECRET || 'default_secret_key';
-  const token = jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
-    jwtSecret,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' },
-  );
-
-  return {
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-    },
-    token,
-  };
-};
-
-export const logout = async () => {
-  return { success: true };
-};
-
-export const recoverPassword = async (email: string) => {
-  const { data: user } = await supabase
-    .from('users')
-    .select('id')
-    .eq('email', email)
-    .single();
-
-  if (!user) {
-    throw new Error('USER_NOT_FOUND');
-  }
-
-  return { email, success: true };
-};
-
-export const getProfile = async (userId: string) => {
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('id, name, email, role, createdAt')
-    .eq('id', userId)
-    .single();
-
-  if (error || !user) {
-    throw new Error('USER_NOT_FOUND');
-  }
-
-  return user;
-};
-

@@ -1,46 +1,40 @@
 import { z } from 'zod';
 
-// ==========================================
-// LOGIN
-// ==========================================
-export const LoginSchema = z.object({
-  email: z.string().email('Formato de email inválido'),
-  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres'),
-});
+const nameRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/;
 
-export type LoginInput = z.infer<typeof LoginSchema>;
+const passwordRegex =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
-// ==========================================
-// REGISTRO
-// ==========================================
-export const RegisterSchema = z.object({
-  name: z
+export const registerSchema = z.object({
+  nombre_completo: z
     .string()
-    .min(2, 'El nombre debe tener al menos 2 caracteres')
-    .max(100, 'El nombre no puede exceder 100 caracteres'),
-  email: z.string().email('Formato de email inválido'),
-  phone: z
+    .trim()
+    .min(3, 'El nombre debe tener mínimo 3 caracteres')
+    .max(150, 'El nombre es demasiado largo')
+    .regex(nameRegex, 'El nombre solo puede contener letras y espacios'),
+
+  email: z
     .string()
-    .regex(/^\+?[0-9\s-()]*$/, 'El teléfono solo puede contener números, +, espacios, guiones y paréntesis')
-    .regex(/[0-9]{7,}/, 'El teléfono debe contener al menos 7 dígitos')
-    .optional()
-    .or(z.literal('')),
+    .trim()
+    .email('Correo electrónico inválido')
+    .max(100, 'El correo es demasiado largo'),
+
   password: z
     .string()
-    .min(8, 'La contraseña debe tener al menos 8 caracteres')
-    .regex(/[A-Z]/, 'Debe contener al menos una mayúscula')
-    .regex(/[a-z]/, 'Debe contener al menos una minúscula')
-    .regex(/[0-9]/, 'Debe contener al menos un número')
-    .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, 'Debe contener al menos un carácter especial'),
+    .min(8, 'La contraseña debe tener mínimo 8 caracteres')
+    .regex(
+      passwordRegex,
+      'La contraseña debe tener mayúscula, minúscula, número y carácter especial'
+    ),
+
+  rol: z.enum(['admin', 'medico', 'recepcionista']),
 });
 
-export type RegisterInput = z.infer<typeof RegisterSchema>;
-
-// ==========================================
-// RECUPERAR CONTRASEÑA
-// ==========================================
-export const RecoverPasswordSchema = z.object({
-  email: z.string().email('Email inválido'),
+export const loginSchema = z.object({
+  email: z.string().trim().email('Correo electrónico inválido'),
+  password: z.string().min(1, 'La contraseña es obligatoria'),
 });
 
-export type RecoverPasswordInput = z.infer<typeof RecoverPasswordSchema>;
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(1),
+});
