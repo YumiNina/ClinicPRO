@@ -44,10 +44,13 @@ export const authMiddleware = (
     req.user = decoded;
 
     next();
-  } catch (_error) {
-    return res.status(401).json({
-      success: false,
-      message: 'Token inválido o expirado',
-    });
-  }
+  } catch (error) {
+  console.error('JWT ERROR:', error);
+
+  return res.status(401).json({
+    success: false,
+    message: 'Token inválido o expirado',
+    error: error instanceof Error ? error.message : 'Unknown error',
+  });
+}
 };
