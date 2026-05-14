@@ -1,7 +1,7 @@
 import { createBrowserRouter } from 'react-router';
 import AuthLayout from './layouts/AuthLayout';
 import DashboardLayout from './layouts/DashboardLayout';
-import { ProtectedRoute } from './layouts/ProtectedRoute';
+import { ProtectedRoute, RoleProtectedRoute } from './layouts/ProtectedRoute';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AllAppointments from './pages/admin/AllAppointments';
 import RegisterClinic from './pages/admin/RegisterClinic';
@@ -27,14 +27,19 @@ const PatientLayout = () => (
   </ProtectedRoute>
 );
 const DoctorLayout = () => (
-  <ProtectedRoute>
+  <RoleProtectedRoute allowedRoles={['medico']}>
     <DashboardLayout role="doctor" />
-  </ProtectedRoute>
+  </RoleProtectedRoute>
 );
 const AdminLayout = () => (
-  <ProtectedRoute>
+  <RoleProtectedRoute allowedRoles={['admin']}>
     <DashboardLayout role="admin" />
-  </ProtectedRoute>
+  </RoleProtectedRoute>
+);
+const ReceptionLayout = () => (
+  <RoleProtectedRoute allowedRoles={['recepcionista']}>
+    <DashboardLayout role="reception" />
+  </RoleProtectedRoute>
 );
 
 export const router = createBrowserRouter([
@@ -81,6 +86,17 @@ export const router = createBrowserRouter([
       { path: 'appointments', Component: AllAppointments },
       { path: 'inbox', Component: Inbox },
       { path: 'profile', element: <Profile role="admin" /> },
+    ],
+  },
+  {
+    path: '/reception',
+    Component: ReceptionLayout,
+    children: [
+      { index: true, Component: AllAppointments },
+      { path: 'appointments', Component: AllAppointments },
+      { path: 'register-patient', Component: RegisterPatient },
+      { path: 'inbox', Component: Inbox },
+      { path: 'profile', element: <Profile role="reception" /> },
     ],
   },
   {

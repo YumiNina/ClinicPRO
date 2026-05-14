@@ -1,5 +1,7 @@
 import { Activity, AlertTriangle, Building2, Calendar, Stethoscope, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { apiClient } from '../../../services/api-client';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import {
@@ -11,57 +13,68 @@ import {
 } from '../../components/ui/card';
 
 export default function AdminDashboard() {
+  const [dashboard, setDashboard] = useState<{
+    stats: {
+      pacientes: number;
+      medicos: number;
+      clinicas: number;
+      citasHoy: number;
+    };
+    recentActivity: Array<{
+      id: string;
+      accion?: string;
+      entidad?: string;
+      created_at?: string;
+    }>;
+  } | null>(null);
+
+  useEffect(() => {
+    apiClient
+      .get('/admin/dashboard')
+      .then((response) => setDashboard(response.data.data))
+      .catch((error) => console.error('No se pudo cargar dashboard admin:', error));
+  }, []);
+
   const stats = [
     {
       label: 'Total Pacientes',
-      value: '1,234',
+      value: String(dashboard?.stats.pacientes ?? 0),
       icon: Users,
-      color: 'text-blue-600',
+      color: 'text-cyan-600',
       change: '+12%',
     },
     {
       label: 'Médicos Activos',
-      value: '45',
+      value: String(dashboard?.stats.medicos ?? 0),
       icon: Stethoscope,
       color: 'text-green-600',
       change: '+3',
     },
-    { label: 'Clínicas', value: '8', icon: Building2, color: 'text-purple-600', change: '+1' },
-    { label: 'Citas Hoy', value: '187', icon: Calendar, color: 'text-orange-600', change: '+8%' },
+    {
+      label: 'Clínicas',
+      value: String(dashboard?.stats.clinicas ?? 0),
+      icon: Building2,
+      color: 'text-teal-600',
+      change: '',
+    },
+    {
+      label: 'Citas Hoy',
+      value: String(dashboard?.stats.citasHoy ?? 0),
+      icon: Calendar,
+      color: 'text-orange-600',
+      change: '',
+    },
   ];
 
-  const recentActivity = [
-    {
-      type: 'user',
-      message: 'Nuevo paciente registrado: María González',
-      time: 'Hace 15 minutos',
-      status: 'success',
-    },
-    {
-      type: 'doctor',
-      message: 'Dr. Luis Ramírez actualizado en Cardiología',
-      time: 'Hace 1 hora',
+  const recentActivity =
+    dashboard?.recentActivity.map((activity) => ({
+      type: activity.entidad || 'activity',
+      message: activity.accion || 'Actividad registrada',
+      time: activity.created_at
+        ? new Date(activity.created_at).toLocaleString('es-ES')
+        : 'Fecha no disponible',
       status: 'info',
-    },
-    {
-      type: 'warning',
-      message: 'Paciente Juan Pérez acumuló 2 cancelaciones',
-      time: 'Hace 2 horas',
-      status: 'warning',
-    },
-    {
-      type: 'clinic',
-      message: 'Nueva clínica registrada: Centro Médico Sur',
-      time: 'Hace 3 horas',
-      status: 'success',
-    },
-    {
-      type: 'block',
-      message: 'Paciente Ana López bloqueado por 1 año (3 ausencias)',
-      time: 'Hace 5 horas',
-      status: 'error',
-    },
-  ];
+    })) || [];
 
   const penalties = [
     {
@@ -90,11 +103,11 @@ export default function AdminDashboard() {
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'user':
-        return <Users className="w-5 h-5 text-blue-600" />;
+        return <Users className="w-5 h-5 text-cyan-600" />;
       case 'doctor':
         return <Stethoscope className="w-5 h-5 text-green-600" />;
       case 'clinic':
-        return <Building2 className="w-5 h-5 text-purple-600" />;
+        return <Building2 className="w-5 h-5 text-teal-600" />;
       case 'warning':
         return <AlertTriangle className="w-5 h-5 text-orange-600" />;
       case 'block':
@@ -108,7 +121,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Panel de Administración</h2>
-        <p className="text-gray-600">Vista general del sistema hospitalario</p>
+        <p className="text-gray-600">Vista general de Clinic Pro</p>
       </div>
 
       {/* Stats */}
@@ -156,7 +169,7 @@ export default function AdminDashboard() {
                 Registrar Clínica
               </Button>
             </Link>
-            <Link to="/admin/all-appointments">
+            <Link to="/admin/appointments">
               <Button className="w-full justify-start" variant="outline">
                 <Calendar className="w-4 h-4 mr-2" />
                 Ver Todas las Citas
@@ -174,6 +187,9 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {recentActivity.length === 0 && (
+                  <p className="text-sm text-gray-500">Aún no hay actividad registrada.</p>
+                )}
                 {recentActivity.map((activity, index) => (
                   <div
                     key={index}

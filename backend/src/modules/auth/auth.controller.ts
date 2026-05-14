@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import type { AuthRequest } from '../../middleware/auth.middleware';
 
 import {
   loginSchema,
@@ -115,7 +116,7 @@ export const logout = async (req: Request, res: Response) => {
   }
 };
 
-export const me = async (req: Request, res: Response) => {
+export const me = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
 
@@ -138,4 +139,26 @@ export const me = async (req: Request, res: Response) => {
       message: 'Error al obtener perfil',
     });
   }
+};
+
+export const googleLoginUrl = async (_req: Request, res: Response) => {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+
+  if (!supabaseUrl) {
+    return res.status(500).json({
+      success: false,
+      message: 'Supabase URL no configurada',
+    });
+  }
+
+  const redirectTo = `${frontendUrl}/`;
+  const url = `${supabaseUrl}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(
+    redirectTo,
+  )}`;
+
+  return res.json({
+    success: true,
+    data: { url },
+  });
 };

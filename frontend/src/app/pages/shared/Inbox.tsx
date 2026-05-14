@@ -29,8 +29,8 @@ export default function Inbox() {
   const { user } = useAuth();
   const { useCitasPaciente, useCitasDoctor, useHistorialPaciente } = useCitas();
 
-  const currentUser = user || JSON.parse(localStorage.getItem('currentUser') || '{}');
-  const rawRole = String(currentUser.role || '').toLowerCase();
+  const currentUser = user || JSON.parse(localStorage.getItem('clinicpro_user') || '{}');
+  const rawRole = String(currentUser.rol || '').toLowerCase();
 
   const normalizeRole = (value: string): 'patient' | 'doctor' | 'admin' | '' => {
     if (value === 'patient' || value === 'paciente') return 'patient';
@@ -153,7 +153,7 @@ export default function Inbox() {
   const getMessageIcon = (type: string) => {
     switch (type) {
       case 'reminder':
-        return <Bell className="w-5 h-5 text-blue-600" />;
+        return <Bell className="w-5 h-5 text-cyan-600" />;
       case 'confirmation':
         return <CheckCircle className="w-5 h-5 text-green-600" />;
       case 'cancellation':
@@ -170,7 +170,7 @@ export default function Inbox() {
   const getMessageColor = (type: string) => {
     switch (type) {
       case 'reminder':
-        return 'border-l-blue-600 bg-blue-50';
+        return 'border-l-cyan-600 bg-cyan-50';
       case 'confirmation':
         return 'border-l-green-600 bg-green-50';
       case 'cancellation':
@@ -262,7 +262,7 @@ export default function Inbox() {
                 <p className="text-sm text-gray-600">No Leídos</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">{unreadMessages.length}</p>
               </div>
-              <Bell className="w-10 h-10 text-blue-600" />
+              <Bell className="w-10 h-10 text-cyan-600" />
             </div>
           </CardContent>
         </Card>

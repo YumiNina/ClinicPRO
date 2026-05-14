@@ -1,19 +1,40 @@
-import { Calendar, Edit, User } from 'lucide-react';
+import {
+  BriefcaseBusiness,
+  CalendarDays,
+  Edit,
+  HeartPulse,
+  IdCard,
+  KeyRound,
+  LockKeyhole,
+  Mail,
+  MapPin,
+  Phone,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react';
+import { useAuth } from '../../../hooks/useAuth';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 
 interface ProfileProps {
-  role: 'patient' | 'doctor' | 'admin';
+  role: 'patient' | 'doctor' | 'admin' | 'reception';
 }
 
-export default function Profile({ role }: ProfileProps) {
-  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+type ProfileField = {
+  label: string;
+  value?: string;
+  icon: typeof UserRound;
+};
 
-  // Datos simulados del perfil
+export default function Profile({ role }: ProfileProps) {
+  const { user } = useAuth();
+  const currentUser = user || JSON.parse(localStorage.getItem('clinicpro_user') || '{}');
+  const displayName = currentUser.nombre_completo || currentUser.name;
+
   const profileData = {
     patient: {
-      name: currentUser.name || 'Ana García Pérez',
+      name: displayName || 'Ana Garcia Perez',
       email: currentUser.email || 'paciente@hospital.com',
       ci: '12345678',
       phone: '70123456',
@@ -21,211 +42,230 @@ export default function Profile({ role }: ProfileProps) {
       gender: 'Femenino',
       bloodType: 'O+',
       address: 'Av. 6 de Agosto #1234, La Paz',
-      emergencyContact: 'Juan García - 71234567',
+      emergencyContact: 'Juan Garcia - 71234567',
+      headline: 'Paciente activo',
+      access: 'Portal de paciente',
       medicalHistory: [
         {
           date: '15/03/2026',
-          doctor: 'Dr. Carlos Méndez',
-          specialty: 'Cardiología',
-          diagnosis: 'Hipertensión arterial controlada',
+          doctor: 'Dr. Carlos Mendez',
+          specialty: 'Cardiologia',
+          diagnosis: 'Hipertension arterial controlada',
           treatment: 'Enalapril 10mg',
         },
         {
           date: '10/02/2026',
-          doctor: 'Dra. María López',
+          doctor: 'Dra. Maria Lopez',
           specialty: 'Medicina General',
-          diagnosis: 'Gripe común',
+          diagnosis: 'Gripe comun',
           treatment: 'Paracetamol, reposo',
         },
         {
           date: '20/01/2026',
-          doctor: 'Dr. Pedro Ramírez',
-          specialty: 'Traumatología',
+          doctor: 'Dr. Pedro Ramirez',
+          specialty: 'Traumatologia',
           diagnosis: 'Esguince leve tobillo derecho',
           treatment: 'Antiinflamatorios, fisioterapia',
         },
       ],
     },
     doctor: {
-      name: currentUser.name || 'Dr. Carlos Méndez',
+      name: displayName || 'Dr. Carlos Mendez',
       email: currentUser.email || 'doctor@hospital.com',
       ci: '87654321',
       phone: '71234567',
-      specialty: 'Cardiología',
+      specialty: 'Cardiologia',
       license: 'MED-12345',
-      experience: '15 años',
-      education: 'Universidad Mayor de San Andrés - 2010',
+      experience: '15 anos',
+      education: 'Universidad Mayor de San Andres - 2010',
       schedule: 'Lunes a Viernes, 8:00 - 16:00',
+      headline: 'Atencion medica',
+      access: 'Agenda e historial clinico',
     },
     admin: {
-      name: currentUser.name || 'Admin Sistema',
+      name: displayName || 'Admin Sistema',
       email: currentUser.email || 'admin@hospital.com',
       ci: '11223344',
       phone: '72345678',
-      department: 'Administración',
+      department: 'Administracion',
       position: 'Administrador del Sistema',
       accessLevel: 'Total',
+      headline: 'Administracion general',
+      access: 'Control completo del sistema',
+    },
+    reception: {
+      name: displayName || 'Recepcion Clinica',
+      email: currentUser.email || 'recepcion@hospital.com',
+      ci: '55667788',
+      phone: '73456789',
+      department: 'Recepcion',
+      position: 'Recepcionista',
+      accessLevel: 'Citas y consulta operativa',
+      headline: 'Gestion operativa',
+      access: 'Citas y registro inicial',
     },
   };
 
-  // biome-ignore lint/suspicious/noExplicitAny: Temporary bypass for mock data types
-  const data = profileData[role] as any;
+  const data = profileData[role];
+
+  const roleNames = {
+    patient: 'Paciente',
+    doctor: 'Medico',
+    admin: 'Administrador',
+    reception: 'Recepcionista',
+  };
+
+  const baseFields: ProfileField[] = [
+    { label: 'Correo', value: data.email, icon: Mail },
+    { label: 'Telefono', value: data.phone, icon: Phone },
+    { label: 'CI', value: data.ci, icon: IdCard },
+  ];
+
+  const roleFields: Record<ProfileProps['role'], ProfileField[]> = {
+    patient: [
+      { label: 'Fecha de nacimiento', value: profileData.patient.birthDate, icon: CalendarDays },
+      { label: 'Genero', value: profileData.patient.gender, icon: UserRound },
+      { label: 'Tipo de sangre', value: profileData.patient.bloodType, icon: HeartPulse },
+      { label: 'Contacto de emergencia', value: profileData.patient.emergencyContact, icon: Phone },
+      { label: 'Direccion', value: profileData.patient.address, icon: MapPin },
+    ],
+    doctor: [
+      { label: 'Especialidad', value: profileData.doctor.specialty, icon: HeartPulse },
+      { label: 'Licencia medica', value: profileData.doctor.license, icon: ShieldCheck },
+      { label: 'Experiencia', value: profileData.doctor.experience, icon: BriefcaseBusiness },
+      { label: 'Formacion', value: profileData.doctor.education, icon: IdCard },
+      { label: 'Horario', value: profileData.doctor.schedule, icon: CalendarDays },
+    ],
+    admin: [
+      { label: 'Departamento', value: profileData.admin.department, icon: BriefcaseBusiness },
+      { label: 'Cargo', value: profileData.admin.position, icon: ShieldCheck },
+      { label: 'Nivel de acceso', value: profileData.admin.accessLevel, icon: KeyRound },
+    ],
+    reception: [
+      { label: 'Departamento', value: profileData.reception.department, icon: BriefcaseBusiness },
+      { label: 'Cargo', value: profileData.reception.position, icon: ShieldCheck },
+      { label: 'Nivel de acceso', value: profileData.reception.accessLevel, icon: KeyRound },
+    ],
+  };
+
+  const fields = [...baseFields, ...roleFields[role]];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mi Perfil</h1>
-          <p className="text-gray-600 mt-1">Información personal y configuración</p>
-        </div>
-        <Button className="w-full sm:w-auto">
-          <Edit className="w-4 h-4 mr-2" />
-          Editar Perfil
-        </Button>
-      </div>
-
-      {/* Información Personal */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Información Personal</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-6">
-            {/* Avatar */}
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="w-12 h-12 text-blue-600" />
-              </div>
-              <Button variant="outline" size="sm">
-                Cambiar Foto
-              </Button>
+      <div className="rounded-lg border border-slate-800 bg-slate-950 p-6 text-white shadow-sm">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-cyan-400/25 bg-cyan-400/15">
+              <UserRound className="h-8 w-8 text-cyan-200" />
             </div>
-
-            {/* Datos */}
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Nombre Completo</label>
-                <p className="text-gray-900 mt-1">{data.name}</p>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-semibold tracking-tight">{data.name}</h1>
+                <Badge className="bg-cyan-400/15 text-cyan-100 hover:bg-cyan-400/20">
+                  {roleNames[role]}
+                </Badge>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Carnet de Identidad</label>
-                <p className="text-gray-900 mt-1">{data.ci}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Correo Electrónico</label>
-                <p className="text-gray-900 mt-1">{data.email}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Teléfono</label>
-                <p className="text-gray-900 mt-1">{data.phone}</p>
-              </div>
-
-              {role === 'patient' && (
-                <>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Fecha de Nacimiento</label>
-                    <p className="text-gray-900 mt-1">{data.birthDate}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Género</label>
-                    <p className="text-gray-900 mt-1">{data.gender}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Tipo de Sangre</label>
-                    <Badge variant="outline" className="mt-1">
-                      {data.bloodType}
-                    </Badge>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">
-                      Contacto de Emergencia
-                    </label>
-                    <p className="text-gray-900 mt-1">{data.emergencyContact}</p>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-sm font-medium text-gray-500">Dirección</label>
-                    <p className="text-gray-900 mt-1">{data.address}</p>
-                  </div>
-                </>
-              )}
-
-              {role === 'doctor' && (
-                <>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Especialidad</label>
-                    <p className="text-gray-900 mt-1">{data.specialty}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Licencia Médica</label>
-                    <p className="text-gray-900 mt-1">{data.license}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Experiencia</label>
-                    <p className="text-gray-900 mt-1">{data.experience}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Formación</label>
-                    <p className="text-gray-900 mt-1">{data.education}</p>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-sm font-medium text-gray-500">Horario de Atención</label>
-                    <p className="text-gray-900 mt-1">{data.schedule}</p>
-                  </div>
-                </>
-              )}
-
-              {role === 'admin' && (
-                <>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Departamento</label>
-                    <p className="text-gray-900 mt-1">{data.department}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Cargo</label>
-                    <p className="text-gray-900 mt-1">{data.position}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-500">Nivel de Acceso</label>
-                    <Badge className="mt-1">{data.accessLevel}</Badge>
-                  </div>
-                </>
-              )}
+              <p className="mt-1 text-sm text-slate-300">{data.headline}</p>
+              <p className="mt-3 max-w-2xl text-sm text-slate-400">{data.access}</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Historial Médico - Solo para pacientes */}
-      {role === 'patient' && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Historial Médico Reciente</CardTitle>
-              <Button variant="outline" size="sm">
-                Ver Todo
+          <Button className="w-full bg-cyan-600 text-white hover:bg-cyan-500 lg:w-auto">
+            <Edit className="mr-2 h-4 w-4" />
+            Editar Perfil
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <Card className="border-slate-200 bg-slate-50/80 shadow-sm">
+          <CardHeader className="border-b border-slate-200 pb-4">
+            <CardTitle className="text-base text-slate-950">Datos del perfil</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-5">
+            <div className="grid gap-3 md:grid-cols-2">
+              {fields.map((field) => {
+                const Icon = field.icon;
+
+                return (
+                  <div
+                    key={field.label}
+                    className="rounded-lg border border-slate-200 bg-white/80 p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 rounded-md bg-cyan-50 p-2 text-cyan-700">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                          {field.label}
+                        </p>
+                        <p className="mt-1 break-words text-sm font-medium text-slate-900">
+                          {field.value || 'No registrado'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 bg-slate-50/80 shadow-sm">
+          <CardHeader className="border-b border-slate-200 pb-4">
+            <CardTitle className="text-base text-slate-950">Seguridad</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-5">
+            <div className="rounded-lg border border-slate-200 bg-white/80 p-4">
+              <div className="flex items-start gap-3">
+                <LockKeyhole className="mt-0.5 h-5 w-5 text-cyan-700" />
+                <div>
+                  <p className="font-medium text-slate-950">Contrasena</p>
+                  <p className="mt-1 text-sm text-slate-500">Ultima actualizacion: hace 2 meses</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" className="mt-4 w-full">
+                Cambiar contrasena
               </Button>
             </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white/80 p-4">
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 text-cyan-700" />
+                <div>
+                  <p className="font-medium text-slate-950">Verificacion en dos pasos</p>
+                  <p className="mt-1 text-sm text-slate-500">Aun no esta activa</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" className="mt-4 w-full">
+                Activar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {role === 'patient' && (
+        <Card className="border-slate-200 bg-slate-50/80 shadow-sm">
+          <CardHeader className="border-b border-slate-200 pb-4">
+            <CardTitle className="text-base text-slate-950">Historial medico reciente</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {data.medicalHistory?.map((record: Record<string, string>, index: number) => (
-                <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-500">{record.date}</span>
-                      </div>
-                      <p className="font-medium text-gray-900">{record.diagnosis}</p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {record.doctor} - {record.specialty}
+          <CardContent className="pt-5">
+            <div className="grid gap-3">
+              {profileData.patient.medicalHistory.map((record) => (
+                <div key={`${record.date}-${record.diagnosis}`} className="rounded-lg border border-slate-200 bg-white/80 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        {record.date} · {record.specialty}
                       </p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        <strong>Tratamiento:</strong> {record.treatment}
-                      </p>
+                      <p className="mt-1 font-medium text-slate-950">{record.diagnosis}</p>
+                      <p className="mt-1 text-sm text-slate-600">{record.doctor}</p>
+                      <p className="mt-2 text-sm text-slate-500">Tratamiento: {record.treatment}</p>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      Ver Detalles
+                    <Button variant="outline" size="sm">
+                      Ver detalle
                     </Button>
                   </div>
                 </div>
@@ -234,33 +274,6 @@ export default function Profile({ role }: ProfileProps) {
           </CardContent>
         </Card>
       )}
-
-      {/* Configuración de Seguridad */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Seguridad</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <p className="font-medium text-gray-900">Contraseña</p>
-              <p className="text-sm text-gray-500">Última actualización: Hace 2 meses</p>
-            </div>
-            <Button variant="outline" size="sm">
-              Cambiar Contraseña
-            </Button>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t">
-            <div>
-              <p className="font-medium text-gray-900">Verificación en dos pasos</p>
-              <p className="text-sm text-gray-500">Agrega una capa extra de seguridad</p>
-            </div>
-            <Button variant="outline" size="sm">
-              Activar
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

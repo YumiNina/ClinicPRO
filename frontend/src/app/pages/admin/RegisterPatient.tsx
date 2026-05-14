@@ -2,6 +2,8 @@ import { ArrowLeft, Info } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
+import { useAuth } from '../../../hooks/useAuth';
+import { apiClient } from '../../../services/api-client';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Button } from '../../components/ui/button';
 import {
@@ -23,6 +25,8 @@ import {
 
 export default function RegisterPatient() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const homePath = user?.rol === 'recepcionista' ? '/reception' : '/admin';
   const [isMinor, setIsMinor] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -55,7 +59,7 @@ export default function RegisterPatient() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
@@ -73,14 +77,28 @@ export default function RegisterPatient() {
       return;
     }
 
-    toast.success('Paciente registrado exitosamente');
-    setTimeout(() => navigate('/admin'), 1500);
+    try {
+      await apiClient.post('/pacientes', {
+        nombre_completo: formData.fullName,
+        ci: formData.ci,
+        fecha_nacimiento: formData.birthDate,
+        telefono: formData.phone,
+        email: formData.email,
+        direccion: formData.address,
+      });
+
+      toast.success('Paciente registrado exitosamente');
+      setTimeout(() => navigate(homePath), 1500);
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo registrar el paciente');
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(homePath)}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
@@ -316,7 +334,7 @@ export default function RegisterPatient() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate('/admin')}
+                onClick={() => navigate(homePath)}
                 className="flex-1"
               >
                 Cancelar

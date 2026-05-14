@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
+import { apiClient } from '../../../services/api-client';
 import { Button } from '../../components/ui/button';
 import {
   Card,
@@ -57,7 +58,7 @@ export default function RegisterDoctor() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
@@ -70,8 +71,24 @@ export default function RegisterDoctor() {
       return;
     }
 
-    toast.success('Médico registrado exitosamente');
-    setTimeout(() => navigate('/admin'), 1500);
+    try {
+      await apiClient.post('/medicos', {
+        nombre_completo: formData.fullName,
+        ci: formData.ci,
+        email: formData.email,
+        telefono: formData.phone,
+        especialidad: formData.specialty,
+        licencia_medica: formData.licenseNumber,
+        horario: formData.schedule,
+        activo: true,
+      });
+
+      toast.success('Médico registrado exitosamente');
+      setTimeout(() => navigate('/admin'), 1500);
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo registrar el médico');
+    }
   };
 
   return (

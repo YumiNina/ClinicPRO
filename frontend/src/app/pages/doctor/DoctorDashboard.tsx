@@ -1,5 +1,7 @@
 import { Calendar, CheckCircle, Clock, FileText, Users } from 'lucide-react';
 import { Link } from 'react-router';
+import { useAuth } from '../../../hooks/useAuth';
+import { useCitas } from '../../../hooks/useCitas';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import {
@@ -11,45 +13,30 @@ import {
 } from '../../components/ui/card';
 
 export default function DoctorDashboard() {
-  const todayAppointments = [
-    {
-      id: 1,
-      patient: 'Juan Pérez García',
-      time: '09:00',
-      specialty: 'Cardiología',
-      status: 'completed',
-      hasAccess: false,
-    },
-    {
-      id: 2,
-      patient: 'María López Sánchez',
-      time: '10:00',
-      specialty: 'Cardiología',
-      status: 'in-progress',
-      hasAccess: true,
-    },
-    {
-      id: 3,
-      patient: 'Carlos Rodríguez',
-      time: '11:00',
-      specialty: 'Cardiología',
-      status: 'pending',
-      hasAccess: false,
-    },
-    {
-      id: 4,
-      patient: 'Ana Martínez',
-      time: '14:00',
-      specialty: 'Cardiología',
-      status: 'pending',
-      hasAccess: false,
-    },
-  ];
+  const { user } = useAuth();
+  const { useCitasDoctor } = useCitas();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: todayAppointments = [] } = useCitasDoctor(user?.id || '', today);
 
   const stats = [
-    { label: 'Citas Hoy', value: '4', icon: Calendar, color: 'text-blue-600' },
-    { label: 'Total Pacientes', value: '127', icon: Users, color: 'text-green-600' },
-    { label: 'Completadas', value: '1', icon: CheckCircle, color: 'text-purple-600' },
+    {
+      label: 'Citas Hoy',
+      value: String(todayAppointments.length),
+      icon: Calendar,
+      color: 'text-cyan-600',
+    },
+    {
+      label: 'Total Pacientes',
+      value: String(new Set(todayAppointments.map((appointment) => appointment.id)).size),
+      icon: Users,
+      color: 'text-green-600',
+    },
+    {
+      label: 'Completadas',
+      value: String(todayAppointments.filter((appointment) => appointment.status === 'completed').length),
+      icon: CheckCircle,
+      color: 'text-teal-600',
+    },
   ];
 
   const getStatusBadge = (status: string) => {
@@ -62,7 +49,7 @@ export default function DoctorDashboard() {
         );
       case 'in-progress':
         return (
-          <Badge variant="default" className="bg-blue-600">
+          <Badge variant="default" className="bg-cyan-600">
             En Consulta
           </Badge>
         );
@@ -79,7 +66,7 @@ export default function DoctorDashboard() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Panel del Médico</h2>
-        <p className="text-gray-600">Dr. Carlos Mendoza - Cardiología</p>
+        <p className="text-gray-600">{user?.nombre_completo || 'Médico'}</p>
       </div>
 
       {/* Stats */}
@@ -118,6 +105,9 @@ export default function DoctorDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
+              {todayAppointments.length === 0 && (
+                <p className="text-sm text-gray-500">No tienes citas programadas para hoy.</p>
+              )}
               {todayAppointments.map((appointment) => (
                 <div
                   key={appointment.id}
@@ -130,12 +120,12 @@ export default function DoctorDashboard() {
                         <span className="font-semibold text-gray-900">{appointment.time} hrs</span>
                         {getStatusBadge(appointment.status)}
                       </div>
-                      <h4 className="font-medium text-gray-900">{appointment.patient}</h4>
+                      <h4 className="font-medium text-gray-900">Paciente {appointment.id}</h4>
                       <p className="text-sm text-gray-600">{appointment.specialty}</p>
                     </div>
                   </div>
 
-                  {appointment.status === 'in-progress' && appointment.hasAccess && (
+                  {appointment.status === 'confirmed' && (
                     <div className="mt-3 flex gap-2">
                       <Link to={`/doctor/patient-history/${appointment.id}`}>
                         <Button size="sm">

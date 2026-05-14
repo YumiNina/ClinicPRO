@@ -2,7 +2,7 @@ import { CreditCard, Lock, Mail, Phone, User } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { API_URLS } from '../../config/api-config';
+import { apiClient } from '../../services/api-client';
 import { Button } from '../components/ui/button';
 import {
   Card,
@@ -82,34 +82,23 @@ export default function Register() {
 
     try {
       // Usando el endpoint de Auth desde nuestro servidor (puerto 3001)
-      const response = await fetch(`${API_URLS.auth}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.fullName,
-          email: formData.email,
-          password: formData.password,
-          ci: formData.ci, // Enviando CI por si el backend lo requiere
-          phone: formData.phone, // Enviando teléfono por si el backend lo requiere
-        }),
+      await apiClient.post('/auth/register', {
+        nombre_completo: formData.fullName,
+        email: formData.email,
+        password: formData.password,
+        rol: 'recepcionista',
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Error al registrar el usuario en el backend');
-      }
 
       toast.success('Registro exitoso. Ahora puedes iniciar sesión');
       setTimeout(() => {
         setLoading(false);
         navigate('/');
       }, 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error al registrar:', error);
-      toast.error(error.message || 'Error de conexión con el backend de Auth');
+      const message =
+        error instanceof Error ? error.message : 'Error de conexión con el backend de Auth';
+      toast.error(message);
       setLoading(false);
     }
   };
@@ -233,7 +222,7 @@ export default function Register() {
         <CardFooter className="flex flex-col gap-4 pt-2 pb-6">
           <Button
             type="submit"
-            className="w-full h-11 bg-blue-600 hover:bg-blue-700"
+            className="w-full h-11 bg-cyan-600 hover:bg-cyan-700"
             disabled={loading}
           >
             {loading ? 'Registrando...' : 'Registrarse'}
@@ -243,7 +232,7 @@ export default function Register() {
             ¿Ya tiene cuenta?{' '}
             <Link
               to="/"
-              className="text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors"
+              className="text-cyan-600 hover:text-cyan-700 hover:underline font-medium transition-colors"
             >
               Inicie sesión aquí
             </Link>

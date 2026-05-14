@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -154,14 +155,14 @@ export default function BookAppointment() {
 
     console.log('PAYLOAD A ENVIAR AL BACKEND:', payload);
 
-    agendarCitaMutation.mutate(payload as any, {
+    agendarCitaMutation.mutate(payload, {
       onSuccess: async () => {
         toast.success('Cita reservada exitosamente');
         setTimeout(() => navigate('/patient/my-appointments'), 1500);
       },
-      onError: (error: any) => {
+      onError: (error: unknown) => {
         console.error('Error al agendar:', error);
-        if (error.response) {
+        if (axios.isAxiosError(error) && error.response) {
           console.error('DATA ERROR BACKEND:', error.response.data);
           const backendMessage =
             error.response.data?.error ||
@@ -189,14 +190,14 @@ export default function BookAppointment() {
             <div
               className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
                 step >= num
-                  ? 'bg-blue-600 border-blue-600 text-white'
+                  ? 'bg-cyan-600 border-cyan-600 text-white'
                   : 'border-gray-300 text-gray-400'
               }`}
             >
               {step > num ? <CheckCircle2 className="w-6 h-6" /> : num}
             </div>
             {num < 4 && (
-              <div className={`flex-1 h-1 mx-2 ${step > num ? 'bg-blue-600' : 'bg-gray-300'}`} />
+              <div className={`flex-1 h-1 mx-2 ${step > num ? 'bg-cyan-600' : 'bg-gray-300'}`} />
             )}
           </div>
         ))}
@@ -238,7 +239,7 @@ export default function BookAppointment() {
                     onClick={() => setSelectedSpecialty(specialty)}
                     className={`p-4 rounded-lg border-2 text-left transition-all ${
                       selectedSpecialty === specialty
-                        ? 'border-blue-600 bg-blue-50'
+                        ? 'border-cyan-600 bg-cyan-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
@@ -332,7 +333,7 @@ export default function BookAppointment() {
                           isOccupied
                             ? 'border-red-300 bg-red-50 text-red-600 cursor-not-allowed'
                             : selectedTime === time
-                              ? 'border-blue-600 bg-blue-600 text-white'
+                              ? 'border-cyan-600 bg-cyan-600 text-white'
                               : 'border-gray-300 hover:border-gray-400'
                         }`}
                       >

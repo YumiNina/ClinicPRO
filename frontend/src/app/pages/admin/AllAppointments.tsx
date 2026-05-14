@@ -1,5 +1,6 @@
 import { Building2, Calendar, Clock, Filter, Search, Stethoscope, User } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { apiClient } from '../../../services/api-client';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import {
@@ -20,7 +21,7 @@ import {
 } from '../../components/ui/select';
 
 interface Appointment {
-  id: number;
+  id: string;
   patient: string;
   patientCI: string;
   doctor: string;
@@ -28,111 +29,54 @@ interface Appointment {
   clinic: string;
   date: string;
   time: string;
-  status: 'confirmed' | 'completed' | 'cancelled' | 'no-show' | 'absent';
+  status: 'confirmed' | 'completed' | 'cancelled' | 'no-show' | 'absent' | 'pending';
 }
+
+type CitaApi = {
+  id: string;
+  paciente_id: string;
+  medico_id: string;
+  clinica_id: string;
+  especialidad: string;
+  fecha: string;
+  hora: string;
+  estado: Appointment['status'];
+};
 
 export default function AllAppointments() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterDate, setFilterDate] = useState('');
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
 
-  const appointments: Appointment[] = [
-    {
-      id: 1,
-      patient: 'Juan Pérez García',
-      patientCI: '12345678',
-      doctor: 'Dr. Carlos Méndez',
-      specialty: 'Cardiología',
-      clinic: 'Hospital Central',
-      date: '2026-03-25',
-      time: '09:00',
-      status: 'confirmed',
-    },
-    {
-      id: 2,
-      patient: 'María López Sánchez',
-      patientCI: '23456789',
-      doctor: 'Dra. Ana Torres',
-      specialty: 'Pediatría',
-      clinic: 'Clínica San Juan',
-      date: '2026-03-25',
-      time: '10:00',
-      status: 'confirmed',
-    },
-    {
-      id: 3,
-      patient: 'Carlos Rodríguez',
-      patientCI: '34567890',
-      doctor: 'Dr. Luis Ramírez',
-      specialty: 'Traumatología',
-      clinic: 'Hospital Central',
-      date: '2026-03-25',
-      time: '11:00',
-      status: 'completed',
-    },
-    {
-      id: 4,
-      patient: 'Ana Martínez',
-      patientCI: '45678901',
-      doctor: 'Dr. Carlos Méndez',
-      specialty: 'Cardiología',
-      clinic: 'Hospital Central',
-      date: '2026-03-24',
-      time: '14:00',
-      status: 'absent',
-    },
-    {
-      id: 5,
-      patient: 'Luis Torres',
-      patientCI: '56789012',
-      doctor: 'Dra. Patricia Gómez',
-      specialty: 'Ginecología',
-      clinic: 'Clínica Santa Cruz',
-      date: '2026-03-24',
-      time: '09:30',
-      status: 'completed',
-    },
-    {
-      id: 6,
-      patient: 'Patricia Sánchez',
-      patientCI: '67890123',
-      doctor: 'Dr. Miguel Flores',
-      specialty: 'Dermatología',
-      clinic: 'Hospital Central',
-      date: '2026-03-23',
-      time: '15:00',
-      status: 'cancelled',
-    },
-    {
-      id: 7,
-      patient: 'Roberto González',
-      patientCI: '78901234',
-      doctor: 'Dr. Carlos Méndez',
-      specialty: 'Cardiología',
-      clinic: 'Hospital Central',
-      date: '2026-03-26',
-      time: '10:00',
-      status: 'confirmed',
-    },
-    {
-      id: 8,
-      patient: 'Sofia Vargas',
-      patientCI: '89012345',
-      doctor: 'Dra. Ana Torres',
-      specialty: 'Pediatría',
-      clinic: 'Clínica San Juan',
-      date: '2026-03-26',
-      time: '11:30',
-      status: 'confirmed',
-    },
-  ];
+  useEffect(() => {
+    apiClient
+      .get('/citas')
+      .then((response) => {
+        const mapped = ((response.data || []) as CitaApi[]).map((cita) => ({
+          id: cita.id,
+          patient: cita.paciente_id,
+          patientCI: '',
+          doctor: cita.medico_id,
+          specialty: cita.especialidad,
+          clinic: cita.clinica_id,
+          date: cita.fecha,
+          time: cita.hora,
+          status: cita.estado,
+        }));
+        setAppointments(mapped);
+      })
+      .catch((error) => console.error('No se pudieron cargar citas:', error));
+  }, []);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'confirmed':
         return <Badge className="bg-green-600">Confirmada</Badge>;
+      case 'pending':
+        return <Badge variant="secondary">Pendiente</Badge>;
       case 'completed':
-        return <Badge className="bg-blue-600">Completada</Badge>;
+        return <Badge className="bg-cyan-600">Completada</Badge>;
       case 'cancelled':
         return <Badge variant="destructive">Cancelada</Badge>;
       case 'no-show':
@@ -187,7 +131,7 @@ export default function AllAppointments() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-600">Completadas</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.completed}</p>
+            <p className="text-2xl font-bold text-cyan-600">{stats.completed}</p>
           </CardContent>
         </Card>
         <Card>

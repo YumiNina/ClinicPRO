@@ -1,3 +1,3 @@
-export { initCitaRoutes } from './CitaRoutes.js';
-export { CitaController } from './CitaController.js';
-export { CitaService } from './CitaService.js';
+export { CitaController } from './cita.controller';
+export { initCitaRoutes } from './cita.routes';
+export { CitaService } from './cita.service';

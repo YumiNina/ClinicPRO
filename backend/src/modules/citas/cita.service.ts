@@ -1,6 +1,6 @@
 import { In, MoreThan, type Repository } from 'typeorm';
-import { type Cita, CitaEstado } from '../entities/Cita';
-import { type Penalizacion, TipoPenalizacion } from '../entities/Penalizacion';
+import { type Cita, CitaEstado } from './cita.entity';
+import { type Penalizacion, TipoPenalizacion } from './penalization.entity';
 
 // Dependencia inyectada o obtenida desde AppDataSource en la implementación real
 export class CitaService {

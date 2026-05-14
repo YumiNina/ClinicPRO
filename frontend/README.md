@@ -1,6 +1,6 @@
-# 🏥 SaludTotal (Frontend-ST) - Documentación Técnica y Guía de Estudio
+# 🏥 Clinic Pro Frontend - Documentación Técnica
 
-Este documento detalla la arquitectura, el stack tecnológico, la estructura del código y los flujos principales del ecosistema Frontend del proyecto **SaludTotal**. Está diseñado como una **guía integral de estudio para la defensa técnica** del sistema.
+Este documento detalla la arquitectura, el stack tecnológico, la estructura del código y los flujos principales del frontend del proyecto **Clinic Pro**.
 
 ---
 

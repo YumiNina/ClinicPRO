@@ -1,4 +1,3 @@
-import axios from 'axios';
 import {
   AlertCircle,
   ArrowLeft,
@@ -13,8 +12,8 @@ import {
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { API_URLS } from '../../../config/api-config';
 import { useAuth } from '../../../hooks/useAuth';
+import { historialClient } from '../../../services/api-client';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -59,21 +58,16 @@ export default function PatientHistoryView() {
 
     try {
       setIsSaving(true);
-      const token = localStorage.getItem('token');
-
       const payloadHistorial = {
         paciente_id: String(id), // ID del paciente mandado en la ruta
         diagnostico: diagnostico,
         severidad: severidad,
-        medico_encargado: user?.name || 'Dr. Médico',
+        medico_encargado: user?.nombre_completo || 'Dr. Médico',
         descripcion: motivo,
         tratamiento: tratamiento,
       };
 
-      await axios.post(`${API_URLS.historial}/historial`, payloadHistorial, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      await historialClient.post('/historial', payloadHistorial, {
         withCredentials: true,
       });
 
@@ -269,7 +263,7 @@ export default function PatientHistoryView() {
                             </div>
                           </div>
                         </div>
-                        <FileText className="w-10 h-10 text-blue-600" />
+                        <FileText className="w-10 h-10 text-cyan-600" />
                       </div>
 
                       <div className="space-y-2 mb-3">
@@ -307,7 +301,7 @@ export default function PatientHistoryView() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {currentMedications.map((med, index) => (
-                    <div key={index} className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div key={index} className="p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
                       <h4 className="font-semibold text-gray-900 mb-2">{med.name}</h4>
                       <div className="space-y-1 text-sm text-gray-700">
                         <p>
@@ -344,7 +338,7 @@ export default function PatientHistoryView() {
                         Motivo de Consulta
                       </label>
                       <textarea
-                        className="w-full min-h-[80px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                        className="w-full min-h-[80px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-600 focus:border-transparent"
                         placeholder="Describe el motivo de la consulta..."
                         value={motivo}
                         onChange={(e) => setMotivo(e.target.value)}
@@ -356,7 +350,7 @@ export default function PatientHistoryView() {
                         Diagnóstico <span className="text-red-500">*</span>
                       </label>
                       <textarea
-                        className="w-full min-h-[80px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                        className="w-full min-h-[80px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-600 focus:border-transparent"
                         placeholder="Ingresa el diagnóstico..."
                         value={diagnostico}
                         onChange={(e) => setDiagnostico(e.target.value)}
@@ -368,7 +362,7 @@ export default function PatientHistoryView() {
                         Severidad
                       </label>
                       <select
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-600 focus:border-transparent"
                         value={severidad}
                         onChange={(e) => setSeveridad(e.target.value)}
                       >
@@ -384,7 +378,7 @@ export default function PatientHistoryView() {
                         Tratamiento/Indicaciones
                       </label>
                       <textarea
-                        className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                        className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-600 focus:border-transparent"
                         placeholder="Tratamiento prescrito, indicaciones, recomendaciones..."
                         value={tratamiento}
                         onChange={(e) => setTratamiento(e.target.value)}

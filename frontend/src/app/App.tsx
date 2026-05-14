@@ -27,7 +27,7 @@ const GlobalErrorFallback = ({
         </div>
         <button
           onClick={resetErrorBoundary}
-          className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
+          className="mt-6 w-full bg-cyan-600 hover:bg-cyan-700 text-white font-medium py-2 px-4 rounded transition-colors"
         >
           Intentar recargar
         </button>

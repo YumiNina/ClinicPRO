@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { AppDataSource } from '../config/database';
-import { CitaController } from '../controllers/CitaController';
-import { Cita } from '../entities/Cita';
-import { Penalizacion } from '../entities/Penalizacion';
-import { CitaService } from '../services/CitaService';
+import { AppDataSource } from '../../config/database';
+import { CitaController } from './cita.controller';
+import { Cita } from './cita.entity';
+import { CitaService } from './cita.service';
+import { Penalizacion } from './penalization.entity';
 
 const router = Router();
 

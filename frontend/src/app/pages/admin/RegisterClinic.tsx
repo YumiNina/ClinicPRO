@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
+import { apiClient } from '../../../services/api-client';
 import { Button } from '../../components/ui/button';
 import {
   Card,
@@ -54,7 +55,7 @@ export default function RegisterClinic() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (formData.specialties.length === 0) {
@@ -62,8 +63,31 @@ export default function RegisterClinic() {
       return;
     }
 
-    toast.success('Clínica registrada exitosamente');
-    setTimeout(() => navigate('/admin'), 1500);
+    try {
+      await apiClient.post('/clinicas', {
+        nombre: formData.name,
+        direccion: formData.address,
+        ciudad: formData.city,
+        telefono: formData.phone,
+        email: formData.email,
+        horario: formData.schedule,
+        descripcion: formData.description,
+      });
+
+      await Promise.allSettled(
+        formData.specialties.map((specialty) =>
+          apiClient.post('/especialidades', {
+            nombre: specialty,
+          }),
+        ),
+      );
+
+      toast.success('Clínica registrada exitosamente');
+      setTimeout(() => navigate('/admin'), 1500);
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo registrar la clínica');
+    }
   };
 
   return (

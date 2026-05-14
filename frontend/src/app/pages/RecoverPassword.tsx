@@ -105,14 +105,14 @@ export default function RecoverPassword() {
           <CardFooter className="flex flex-col gap-4 pt-2 pb-6">
             <Button
               type="submit"
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700"
+              className="w-full h-11 bg-cyan-600 hover:bg-cyan-700"
               disabled={loading}
             >
               {loading ? 'Enviando...' : 'Enviar Instrucciones'}
             </Button>
             <Link
               to="/"
-              className="flex items-center justify-center gap-2 text-sm text-blue-600 hover:text-blue-700 hover:underline font-medium transition-colors"
+              className="flex items-center justify-center gap-2 text-sm text-cyan-600 hover:text-cyan-700 hover:underline font-medium transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Volver al inicio de sesión
@@ -147,7 +147,7 @@ export default function RecoverPassword() {
           <CardFooter className="pb-6">
             <Button
               type="submit"
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700"
+              className="w-full h-11 bg-cyan-600 hover:bg-cyan-700"
               disabled={loading}
             >
               {loading ? 'Verificando...' : 'Verificar Identidad'}
@@ -198,7 +198,7 @@ export default function RecoverPassword() {
           <CardFooter className="pb-6">
             <Button
               type="submit"
-              className="w-full h-11 bg-blue-600 hover:bg-blue-700"
+              className="w-full h-11 bg-cyan-600 hover:bg-cyan-700"
               disabled={loading}
             >
               {loading ? 'Actualizando...' : 'Actualizar Contraseña'}

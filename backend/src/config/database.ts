@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
-import { Cita } from '../entities/Cita';
-import { Penalizacion } from '../entities/Penalizacion';
+import { Cita } from '../modules/citas/cita.entity';
+import { Penalizacion } from '../modules/citas/penalization.entity';
 
 dotenv.config();
 

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-
+import type { WebSocketLikeConstructor } from '@supabase/realtime-js';
 import ws from 'ws';
 
 const supabaseUrl = process.env.SUPABASE_URL as string;
@@ -12,7 +12,7 @@ export const supabase = createClient(
   supabaseKey,
   {
     realtime: {
-      transport: ws,
+      transport: ws as unknown as WebSocketLikeConstructor,
     },
   }
 );

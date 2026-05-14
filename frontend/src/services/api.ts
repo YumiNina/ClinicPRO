@@ -1,6 +1,5 @@
-import { API_URLS } from '../config/api-config';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || API_URLS.auth;
+import { getStoredRefreshToken } from '../utils/auth-storage';
+import { apiClient } from './api-client';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -10,10 +9,6 @@ interface ApiResponse<T> {
 }
 
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-  const url = `${API_BASE_URL}${endpoint}`;
-
-  const token = localStorage.getItem('token');
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -25,22 +20,15 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   } else if (typeof options.headers === 'object' && options.headers !== null) {
     Object.assign(headers, options.headers);
   }
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   try {
-    const response = await fetch(url, {
-      ...options,
+    const response = await apiClient.request<ApiResponse<T>>({
+      url: endpoint,
+      method: options.method || 'GET',
       headers,
+      data: options.body,
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Error en la request');
-    }
-
-    return await response.json();
+    return response.data;
   } catch (error) {
     console.error('API Error:', error);
     throw error;
@@ -54,18 +42,26 @@ export const authService = {
       body: JSON.stringify({ email, password }),
     }),
 
-  register: async (name: string, email: string, password: string) =>
+  register: async (nombre_completo: string, email: string, password: string) =>
     apiCall('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({
+        nombre_completo,
+        email,
+        password,
+        rol: 'recepcionista',
+      }),
     }),
 
   logout: async () =>
     apiCall('/auth/logout', {
       method: 'POST',
+      body: JSON.stringify({
+        refreshToken: getStoredRefreshToken(),
+      }),
     }),
 
-  getProfile: async () => apiCall('/auth/profile'),
+  getProfile: async () => apiCall('/auth/me'),
 
   recoverPassword: async (email: string) =>
     apiCall('/auth/recover-password', {

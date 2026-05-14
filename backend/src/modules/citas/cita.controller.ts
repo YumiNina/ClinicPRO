@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import type { CitaService } from '../services/CitaService';
+import type { CitaService } from './cita.service';
 
 export class CitaController {
   constructor(private citaService: CitaService) {}

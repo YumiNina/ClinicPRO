@@ -149,7 +149,7 @@ export default function MedicalHistory() {
                 </div>
               </div>
             </div>
-            <FileText className="w-10 h-10 text-blue-600" />
+            <FileText className="w-10 h-10 text-cyan-600" />
           </div>
 
           <p className="text-sm text-gray-700 mb-4 p-3 bg-gray-50 rounded-md">
@@ -186,7 +186,7 @@ export default function MedicalHistory() {
                 <p className="text-sm text-gray-600">Consultas</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">{consultations.length}</p>
               </div>
-              <FileText className="w-10 h-10 text-blue-600" />
+              <FileText className="w-10 h-10 text-cyan-600" />
             </div>
           </CardContent>
         </Card>
@@ -210,7 +210,7 @@ export default function MedicalHistory() {
                 <p className="text-sm text-gray-600">Recetas</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1">{prescriptions.length}</p>
               </div>
-              <FileText className="w-10 h-10 text-purple-600" />
+              <FileText className="w-10 h-10 text-teal-600" />
             </div>
           </CardContent>
         </Card>

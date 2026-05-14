@@ -4,43 +4,56 @@
 
 export interface IUser {
   id: string;
+  nombre_completo: string;
   email: string;
-  password: string;
-  first_name: string;
-  last_name: string;
-  role: UserRole;
-  is_active: boolean;
+  password_hash: string;
+  rol: UserRole;
+  activo: boolean;
+  ultimo_login?: Date;
   created_at: Date;
   updated_at: Date;
 }
 
 export interface IDoctor {
   id: string;
-  user_id: string;
-  license_number: string;
-  specialties: string[];
-  is_available: boolean;
+  usuario_id?: string;
+  nombre_completo: string;
+  ci?: string;
+  email?: string;
+  telefono?: string;
+  especialidad?: string;
+  licencia_medica?: string;
+  clinica_id?: string;
+  horario?: string;
+  activo: boolean;
   created_at: Date;
   updated_at: Date;
 }
 
 export interface IPatient {
   id: string;
-  user_id: string;
-  date_of_birth: Date;
-  phone: string;
-  address: string;
+  usuario_id?: string;
+  nombre_completo?: string;
+  ci?: string;
+  telefono?: string;
+  email?: string;
+  fecha_nacimiento?: Date;
+  direccion?: string;
   created_at: Date;
   updated_at: Date;
 }
 
 export interface ICita {
   id: string;
-  patient_id: string;
-  doctor_id: string;
-  scheduled_at: Date;
-  status: CitaStatus;
-  notes: string;
+  paciente_id: string;
+  medico_id: string;
+  clinica_id: string;
+  especialidad: string;
+  fecha: string;
+  hora: string;
+  motivo?: string;
+  estado: CitaStatus;
+  notas_doctor?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -54,22 +67,22 @@ export interface IApiResponse<T> {
 
 export enum UserRole {
   ADMIN = 'admin',
-  DOCTOR = 'doctor',
-  PATIENT = 'patient',
-  RECEPTIONIST = 'receptionist',
+  DOCTOR = 'medico',
+  RECEPTIONIST = 'recepcionista',
 }
 
 export enum CitaStatus {
-  SCHEDULED = 'scheduled',
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
-  NO_SHOW = 'no_show',
+  ABSENT = 'absent',
 }
 
 export interface IAuthPayload {
   id: string;
   email: string;
-  role: UserRole;
+  rol: UserRole;
   iat?: number;
   exp?: number;
 }
@@ -80,10 +93,12 @@ export interface ILoginRequest {
 }
 
 export interface ILoginResponse {
-  token: string;
+  accessToken: string;
+  refreshToken: string;
   user: {
     id: string;
+    nombre_completo: string;
     email: string;
-    role: UserRole;
+    rol: UserRole;
   };
 }

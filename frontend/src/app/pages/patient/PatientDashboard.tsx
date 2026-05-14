@@ -45,7 +45,7 @@ export default function PatientDashboard() {
       label: 'Citas Programadas',
       value: String(upcomingAppointments.length),
       icon: Calendar,
-      color: 'text-blue-600',
+      color: 'text-cyan-600',
     },
     {
       label: 'Historial Médico',
@@ -185,7 +185,7 @@ export default function PatientDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             {nextAppointment ? (
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="p-4 bg-cyan-50 rounded-lg border border-cyan-200">
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <h4 className="font-semibold text-gray-900">{nextAppointment.specialty}</h4>
@@ -268,7 +268,7 @@ export default function PatientDashboard() {
                   {activity.type === 'success' && (
                     <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
                   )}
-                  {activity.type === 'info' && <Clock className="w-5 h-5 text-blue-600 mt-0.5" />}
+                  {activity.type === 'info' && <Clock className="w-5 h-5 text-cyan-600 mt-0.5" />}
                   {activity.type === 'warning' && (
                     <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5" />
                   )}

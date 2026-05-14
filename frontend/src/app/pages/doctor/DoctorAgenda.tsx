@@ -263,8 +263,8 @@ export default function DoctorAgenda() {
                               <AlertDialogTitle>Cancelar Cita Médica</AlertDialogTitle>
                               <AlertDialogDescription className="space-y-2">
                                 <p>¿Estás seguro de cancelar la cita con {appointment.patient}?</p>
-                                <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
-                                  <p className="text-sm text-blue-800">
+                                <div className="p-3 bg-cyan-50 rounded-md border border-cyan-200">
+                                  <p className="text-sm text-cyan-800">
                                     <strong>Nota:</strong> El paciente será notificado y no recibirá
                                     penalización. El horario quedará disponible para otra reserva.
                                   </p>
@@ -403,7 +403,7 @@ export default function DoctorAgenda() {
                                 <Button
                                   type="button"
                                   onClick={() => handleCompleteAppointment(appointment.id)}
-                                  className="bg-blue-500 hover:bg-blue-600"
+                                  className="bg-cyan-500 hover:bg-cyan-600"
                                 >
                                   Guardar y Completar
                                 </Button>

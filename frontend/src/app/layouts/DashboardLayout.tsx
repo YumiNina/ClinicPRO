@@ -1,4 +1,5 @@
 import {
+  Activity,
   Bell,
   Building2,
   Calendar,
@@ -17,14 +18,13 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
-import logo from '../../assets/ef6b1b356c372c4c3cd408e1518a34485f7432b6.png';
 import { useAuth } from '../../hooks/useAuth';
 import { useCitas } from '../../hooks/useCitas';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 
 interface DashboardLayoutProps {
-  role: 'patient' | 'doctor' | 'admin';
+  role: 'patient' | 'doctor' | 'admin' | 'reception';
 }
 
 export default function DashboardLayout({ role }: DashboardLayoutProps) {
@@ -38,9 +38,8 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
   const notificationRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Obtener datos del usuario desde context o temporalmente localStorage
-  const currentUser = user || JSON.parse(localStorage.getItem('currentUser') || '{}');
-  const userName = currentUser.name || 'Usuario Demo';
+  const currentUser = user || JSON.parse(localStorage.getItem('clinicpro_user') || '{}');
+  const userName = currentUser.nombre_completo || 'Usuario Demo';
   const patientId = role === 'patient' ? currentUser.id || '' : '';
   const doctorId = role === 'doctor' ? currentUser.id || '' : '';
 
@@ -105,9 +104,8 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
     setMobileMenuOpen(false);
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    localStorage.removeItem('currentUser');
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 
@@ -171,20 +169,41 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
       badge: unreadCount,
     },
   ];
+  const receptionMenuItems = [
+    { path: '/reception', icon: Calendar, label: 'Gestionar Citas' },
+    {
+      path: '/reception/register-patient',
+      icon: UserPlus,
+      label: 'Registrar Paciente',
+    },
+    {
+      path: '/reception/inbox',
+      icon: Inbox,
+      label: 'Bandeja de Entrada',
+      badge: unreadCount,
+    },
+  ];
 
   const menuItems =
-    role === 'patient' ? patientMenuItems : role === 'doctor' ? doctorMenuItems : adminMenuItems;
+    role === 'patient'
+      ? patientMenuItems
+      : role === 'doctor'
+        ? doctorMenuItems
+        : role === 'reception'
+          ? receptionMenuItems
+          : adminMenuItems;
 
   const roleNames = {
     patient: 'Paciente',
     doctor: 'Médico',
     admin: 'Administrador',
+    reception: 'Recepcionista',
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-100">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-slate-950/95 border-b border-slate-800 sticky top-0 z-50 backdrop-blur">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Left side - Logo and mobile menu */}
@@ -192,23 +211,21 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="lg:hidden"
+                className="lg:hidden text-slate-100 hover:bg-slate-800 hover:text-white"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </Button>
 
               <div className="flex items-center gap-2">
-                <img
-                  src={logo}
-                  alt="Sistema Hospitalario"
-                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
-                />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-400/25 bg-cyan-400/15 sm:h-10 sm:w-10">
+                  <Activity className="h-5 w-5 text-cyan-300 sm:h-6 sm:w-6" />
+                </div>
                 <div className="hidden sm:block">
-                  <h1 className="font-bold text-gray-900 text-sm sm:text-base">
-                    Sistema Hospitalario
+                  <h1 className="font-bold text-white text-sm sm:text-base">
+                    CLINIC PRO
                   </h1>
-                  <p className="text-xs text-gray-500">{roleNames[role]}</p>
+                  <p className="text-xs text-cyan-300">{roleNames[role]}</p>
                 </div>
               </div>
             </div>
@@ -220,7 +237,7 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="relative"
+                  className="relative text-slate-100 hover:bg-slate-800 hover:text-white"
                   onClick={() => {
                     setShowNotifications(!showNotifications);
                     setShowUserMenu(false);
@@ -236,39 +253,39 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
 
                 {/* Notifications Dropdown */}
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-lg border border-gray-200 py-2 max-h-[500px] overflow-y-auto">
-                    <div className="px-4 py-3 border-b border-gray-200">
-                      <h3 className="font-semibold text-gray-900">Notificaciones</h3>
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-lg border border-slate-200 py-2 max-h-[500px] overflow-y-auto">
+                    <div className="px-4 py-3 border-b border-slate-200">
+                      <h3 className="font-semibold text-slate-950">Notificaciones</h3>
                     </div>
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-slate-100">
                       {notifications.length > 0 ? (
                         notifications.map((notif) => (
                           <div
                             key={notif.id}
-                            className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${notif.unread ? 'bg-blue-50/50' : ''}`}
+                            className={`px-4 py-3 hover:bg-slate-50 cursor-pointer ${notif.unread ? 'bg-cyan-50/70' : ''}`}
                           >
                             <div className="flex gap-3">
                               {notif.unread && (
-                                <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0" />
+                                <div className="w-2 h-2 bg-cyan-600 rounded-full mt-2 flex-shrink-0" />
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 truncate">
+                                <p className="text-sm font-medium text-slate-950 truncate">
                                   {notif.title}
                                 </p>
-                                <p className="text-sm text-gray-600 mt-0.5">{notif.message}</p>
-                                <p className="text-xs text-gray-400 mt-1">{notif.time}</p>
+                                <p className="text-sm text-slate-600 mt-0.5">{notif.message}</p>
+                                <p className="text-xs text-slate-400 mt-1">{notif.time}</p>
                               </div>
                             </div>
                           </div>
                         ))
                       ) : (
-                        <div className="px-4 py-6 text-sm text-gray-500 text-center">
+                        <div className="px-4 py-6 text-sm text-slate-500 text-center">
                           No hay notificaciones recientes.
                         </div>
                       )}
                     </div>
-                    <div className="px-4 py-2 border-t border-gray-200">
-                      <button className="text-sm text-blue-600 hover:text-blue-700 font-medium w-full text-center">
+                    <div className="px-4 py-2 border-t border-slate-200">
+                      <button className="text-sm text-cyan-700 hover:text-cyan-800 font-medium w-full text-center">
                         Ver todas las notificaciones
                       </button>
                     </div>
@@ -283,28 +300,28 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
                     setShowUserMenu(!showUserMenu);
                     setShowNotifications(false);
                   }}
-                  className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-2 py-1.5 transition-colors"
+                  className="flex items-center gap-2 hover:bg-slate-800 rounded-lg px-2 py-1.5 transition-colors"
                 >
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-blue-600" />
+                  <div className="w-8 h-8 bg-cyan-400/15 rounded-full flex items-center justify-center border border-cyan-400/25">
+                    <User className="w-5 h-5 text-cyan-300" />
                   </div>
-                  <span className="text-sm font-medium text-gray-700 hidden sm:block max-w-[120px] truncate">
+                  <span className="text-sm font-medium text-slate-100 hidden sm:block max-w-[120px] truncate">
                     {userName}
                   </span>
                 </button>
 
                 {/* User Dropdown */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1">
-                    <div className="px-4 py-3 border-b border-gray-200">
-                      <p className="text-sm font-medium text-gray-900">{userName}</p>
-                      <p className="text-xs text-gray-500">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-1">
+                    <div className="px-4 py-3 border-b border-slate-200">
+                      <p className="text-sm font-medium text-slate-950">{userName}</p>
+                      <p className="text-xs text-slate-500">
                         {currentUser.email || 'demo@hospital.com'}
                       </p>
                     </div>
                     <Link
                       to={`/${role}/profile`}
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-cyan-50"
                       onClick={() => setShowUserMenu(false)}
                     >
                       <UserCircle className="w-4 h-4" />
@@ -312,13 +329,13 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
                     </Link>
                     <Link
                       to={`/${role}/settings`}
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-cyan-50"
                       onClick={() => setShowUserMenu(false)}
                     >
                       <Settings className="w-4 h-4" />
                       Configuración
                     </Link>
-                    <div className="border-t border-gray-200 mt-1 pt-1">
+                    <div className="border-t border-slate-200 mt-1 pt-1">
                       <button
                         onClick={handleLogout}
                         className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full"
@@ -345,7 +362,7 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
 
       {/* Mobile Sidebar */}
       <aside
-        className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-200 z-40 transform transition-transform duration-300 lg:hidden ${
+        className={`fixed left-0 top-16 bottom-0 w-64 bg-slate-950 border-r border-slate-800 z-40 transform transition-transform duration-300 lg:hidden ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -361,8 +378,8 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
                     to={item.path}
                     className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700 font-medium'
-                        : 'text-gray-700 hover:bg-gray-50'
+                        ? 'bg-cyan-400/15 text-cyan-100 font-medium'
+                        : 'text-slate-300 hover:bg-slate-900 hover:text-white'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -384,7 +401,7 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
         <div className="flex gap-8">
           {/* Desktop Sidebar */}
           <aside className="hidden lg:block w-64 flex-shrink-0">
-            <nav className="bg-white rounded-lg border border-gray-200 p-4 sticky top-20">
+            <nav className="bg-slate-950 rounded-lg border border-slate-800 p-4 sticky top-20 shadow-sm">
               <ul className="space-y-2">
                 {menuItems.map((item) => {
                   const Icon = item.icon;
@@ -396,8 +413,8 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
                         to={item.path}
                         className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                           isActive
-                            ? 'bg-blue-50 text-blue-700 font-medium'
-                            : 'text-gray-700 hover:bg-gray-50'
+                            ? 'bg-cyan-400/15 text-cyan-100 font-medium'
+                            : 'text-slate-300 hover:bg-slate-900 hover:text-white'
                         }`}
                       >
                         <Icon className="w-5 h-5" />

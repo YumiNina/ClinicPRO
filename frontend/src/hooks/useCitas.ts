@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
-import { API_URLS } from '../config/api-config';
+import { citasClient, historialClient } from '../services/api-client';
 
 // interfaces cita
 export interface Cita {
@@ -24,6 +23,16 @@ type CitaApi = {
   hora: string;
   estado: 'confirmed' | 'pending' | 'completed' | 'cancelled' | 'absent';
 };
+
+type NuevaCitaApi = {
+  paciente_id: string;
+  medico_id: string;
+  clinica_id: string;
+  especialidad: string;
+  fecha: string;
+  hora: string;
+  motivo?: string;
+};
 //mapeo para la api(back citas)
 const mapCitaApiToUi = (cita: CitaApi): Cita => ({
   id: cita.id,
@@ -36,11 +45,6 @@ const mapCitaApiToUi = (cita: CitaApi): Cita => ({
   status: cita.estado,
 });
 
-// axios
-const api = axios.create({
-  baseURL: API_URLS.citas,
-});
-
 export const useCitas = () => {
   const queryClient = useQueryClient();
 
@@ -50,7 +54,7 @@ export const useCitas = () => {
       queryKey: ['citas', 'paciente', pacienteId],
       queryFn: async () => {
         // Llama a GET /api/citas/paciente/:id
-        const { data } = await api.get<CitaApi[]>(`/citas/paciente/${pacienteId}`);
+        const { data } = await citasClient.get<CitaApi[]>(`/citas/paciente/${pacienteId}`);
         return (data || []).map(mapCitaApiToUi);
       },
       enabled: !!pacienteId,
@@ -62,7 +66,7 @@ export const useCitas = () => {
       queryKey: ['historial', 'paciente', pacienteId],
       queryFn: async () => {
         // Hacemos el fetch manual apuntando al puerto / servidor de historial (3002)
-        const response = await axios.get(`${API_URLS.historial}/historial/paciente/${pacienteId}`);
+        const response = await historialClient.get(`/historial/paciente/${pacienteId}`);
         return response.data;
       },
       enabled: !!pacienteId,
@@ -74,9 +78,12 @@ export const useCitas = () => {
       queryKey: ['citas', 'doctor', doctorId, fecha || 'all'],
       queryFn: async () => {
         // Llama a GET /api/citas/medico/:id?fecha=YYYY-MM-DD
-        const { data } = await api.get<CitaApi[]>(`/citas/medico/${encodeURIComponent(doctorId)}`, {
-          params: fecha ? { fecha } : undefined,
-        });
+        const { data } = await citasClient.get<CitaApi[]>(
+          `/citas/medico/${encodeURIComponent(doctorId)}`,
+          {
+            params: fecha ? { fecha } : undefined,
+          }
+        );
         return (data || []).map(mapCitaApiToUi);
       },
       enabled: !!doctorId,
@@ -84,8 +91,8 @@ export const useCitas = () => {
 
   // agendar cita
   const agendarCitaMutation = useMutation({
-    mutationFn: async (nuevaCita: Omit<Cita, 'id' | 'status'>) => {
-      const { data } = await api.post<Cita>('/citas', nuevaCita);
+    mutationFn: async (nuevaCita: NuevaCitaApi) => {
+      const { data } = await citasClient.post<Cita>('/citas', nuevaCita);
       return data;
     },
     onSuccess: () => {
@@ -96,7 +103,7 @@ export const useCitas = () => {
   // cancelar cita
   const cancelarCitaMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data } = await api.patch(`/citas/${id}/estado`, {
+      const { data } = await citasClient.patch(`/citas/${id}/estado`, {
         estado: 'cancelled',
       });
       return data;

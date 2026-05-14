@@ -1,7 +1,7 @@
 {
-	"name": "frontend-st",
+	"name": "clinicpro-frontend",
 	"version": "1.0.0",
-	"description": "",
+	"description": "Frontend de Clinic Pro",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
@@ -24,7 +24,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/SaludTotal-Ucb/Frontend-ST.git"
+		"url": "git+https://github.com/YumiNina/ClinicPRO.git"
 	},
 	"keywords": [
 		"react",
@@ -34,9 +34,9 @@
 	"author": "",
 	"license": "ISC",
 	"bugs": {
-		"url": "https://github.com/SaludTotal-Ucb/Frontend-ST/issues"
+		"url": "https://github.com/YumiNina/ClinicPRO/issues"
 	},
-	"homepage": "https://github.com/SaludTotal-Ucb/Frontend-ST#readme",
+	"homepage": "https://github.com/YumiNina/ClinicPRO#readme",
 	"lint-staged": {
 		"**/*.{js,jsx,ts,tsx,mjs,cjs,mts,cts}": "biome check --write",
 		"**/*.html": "prettier --write --no-error-on-unmatched-pattern",
