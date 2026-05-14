@@ -51,7 +51,7 @@ src/
 
 La aplicación no se basa en rutas sueltas. Utilizamos el concepto de **Layouts Anidados**:
 1.  **AuthLayout**: Envoltorio para páginas públicas (Login, Register, Recover Password). Todo lo que no requiere estar autenticado.
-2.  **DashboardLayout**: El esqueleto maestro interno. Dependiendo del `role` (`"patient"`, `"doctor"`, `"admin"`), este layout cambiará la barra lateral (Sidebar/Navegación) para mostrar las opciones adecuadas a cada tipo de usuario, pero el contendor principal sigue siendo el mismo.
+2.  **DashboardLayout**: El esqueleto maestro interno. Dependiendo del `role` (`"patient"`, `"doctor"`, `"admin"`, `"reception"`), este layout cambia la barra lateral para mostrar las opciones adecuadas a cada tipo de usuario.
 
 En `routes.tsx`, el registro de rutas usa el objeto de `createBrowserRouter`:
 *Ejemplo conceptual de una rama:*
@@ -70,13 +70,21 @@ En `routes.tsx`, el registro de rutas usa el objeto de `createBrowserRouter`:
 
 ## 👥 4. Módulos / Funcionalidades por Rol
 
-El sistema soporta 3 perfiles principales:
+El sistema soporta 4 vistas internas principales:
 
 ### 🏥 Administrador (`/admin`)
 *   Responsabilidad: Gestión global del sistema.
 *   Páginas principales:
     *   **RegisterClinic / RegisterDoctor / RegisterPatient**: Formularios para dar alta cruzada.
     *   **AllAppointments**: Visor global.
+
+### 🧾 Recepcionista (`/reception`)
+*   Responsabilidad: Gestión operativa de citas y registro inicial.
+*   Restricciones:
+    *   No tiene acceso administrativo completo.
+    *   No puede editar pacientes ya atendidos.
+    *   No puede crear médicos, clínicas ni especialidades.
+    *   No puede marcar citas como completadas o ausentes.
 
 ### 🩺 Médico (`/doctor`)
 *   Responsabilidad: Atender citas y visualizar historias clínicas.
