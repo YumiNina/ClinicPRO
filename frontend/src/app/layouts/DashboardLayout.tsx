@@ -14,6 +14,7 @@ import {
   User,
   UserCircle,
   UserPlus,
+  Users,
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -52,6 +53,7 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
       : role === 'patient'
         ? patientAppointments || []
         : [];
+  const showNotificationControls = role !== 'admin';
 
   const notifications = appointments
     .slice()
@@ -82,7 +84,9 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
       };
     });
 
-  const unreadCount = notifications.filter((notification) => notification.unread).length;
+  const unreadCount = showNotificationControls
+    ? notifications.filter((notification) => notification.unread).length
+    : 0;
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -163,10 +167,9 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
       label: 'Registrar Paciente',
     },
     {
-      path: '/admin/inbox',
-      icon: Inbox,
-      label: 'Bandeja de Entrada',
-      badge: unreadCount,
+      path: '/admin/users',
+      icon: Users,
+      label: 'Usuarios',
     },
   ];
   const receptionMenuItems = [
@@ -232,66 +235,67 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
 
             {/* Right side - Actions */}
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Notifications */}
-              <div className="relative" ref={notificationRef}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative text-slate-100 hover:bg-slate-800 hover:text-white"
-                  onClick={() => {
-                    setShowNotifications(!showNotifications);
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <Bell className="w-5 h-5" />
-                  {unreadCount > 0 && (
-                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                      {unreadCount}
-                    </Badge>
-                  )}
-                </Button>
+              {showNotificationControls && (
+                <div className="relative" ref={notificationRef}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative text-slate-100 hover:bg-slate-800 hover:text-white"
+                    onClick={() => {
+                      setShowNotifications(!showNotifications);
+                      setShowUserMenu(false);
+                    }}
+                  >
+                    <Bell className="w-5 h-5" />
+                    {unreadCount > 0 && (
+                      <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                        {unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
 
-                {/* Notifications Dropdown */}
-                {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-lg border border-slate-200 py-2 max-h-[500px] overflow-y-auto">
-                    <div className="px-4 py-3 border-b border-slate-200">
-                      <h3 className="font-semibold text-slate-950">Notificaciones</h3>
-                    </div>
-                    <div className="divide-y divide-slate-100">
-                      {notifications.length > 0 ? (
-                        notifications.map((notif) => (
-                          <div
-                            key={notif.id}
-                            className={`px-4 py-3 hover:bg-slate-50 cursor-pointer ${notif.unread ? 'bg-cyan-50/70' : ''}`}
-                          >
-                            <div className="flex gap-3">
-                              {notif.unread && (
-                                <div className="w-2 h-2 bg-cyan-600 rounded-full mt-2 flex-shrink-0" />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-slate-950 truncate">
-                                  {notif.title}
-                                </p>
-                                <p className="text-sm text-slate-600 mt-0.5">{notif.message}</p>
-                                <p className="text-xs text-slate-400 mt-1">{notif.time}</p>
+                  {/* Notifications Dropdown */}
+                  {showNotifications && (
+                    <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-lg border border-slate-200 py-2 max-h-[500px] overflow-y-auto">
+                      <div className="px-4 py-3 border-b border-slate-200">
+                        <h3 className="font-semibold text-slate-950">Notificaciones</h3>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        {notifications.length > 0 ? (
+                          notifications.map((notif) => (
+                            <div
+                              key={notif.id}
+                              className={`px-4 py-3 hover:bg-slate-50 cursor-pointer ${notif.unread ? 'bg-cyan-50/70' : ''}`}
+                            >
+                              <div className="flex gap-3">
+                                {notif.unread && (
+                                  <div className="w-2 h-2 bg-cyan-600 rounded-full mt-2 flex-shrink-0" />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-slate-950 truncate">
+                                    {notif.title}
+                                  </p>
+                                  <p className="text-sm text-slate-600 mt-0.5">{notif.message}</p>
+                                  <p className="text-xs text-slate-400 mt-1">{notif.time}</p>
+                                </div>
                               </div>
                             </div>
+                          ))
+                        ) : (
+                          <div className="px-4 py-6 text-sm text-slate-500 text-center">
+                            No hay notificaciones recientes.
                           </div>
-                        ))
-                      ) : (
-                        <div className="px-4 py-6 text-sm text-slate-500 text-center">
-                          No hay notificaciones recientes.
-                        </div>
-                      )}
+                        )}
+                      </div>
+                      <div className="px-4 py-2 border-t border-slate-200">
+                        <button className="text-sm text-cyan-700 hover:text-cyan-800 font-medium w-full text-center">
+                          Ver todas las notificaciones
+                        </button>
+                      </div>
                     </div>
-                    <div className="px-4 py-2 border-t border-slate-200">
-                      <button className="text-sm text-cyan-700 hover:text-cyan-800 font-medium w-full text-center">
-                        Ver todas las notificaciones
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* User Menu */}
               <div className="relative" ref={userMenuRef}>

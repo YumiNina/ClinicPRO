@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import type { AuthRequest } from '../../middleware/auth.middleware';
 
 import {
+  googleReceptionistRegisterSchema,
+  googleSessionSchema,
   loginSchema,
   refreshSchema,
   registerSchema,
@@ -161,4 +163,64 @@ export const googleLoginUrl = async (_req: Request, res: Response) => {
     success: true,
     data: { url },
   });
+};
+
+export const googleSession = async (req: Request, res: Response) => {
+  try {
+    const validation = googleSessionSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token de Google requerido',
+      });
+    }
+
+    const data = await authService.googleSession(
+      validation.data.supabaseAccessToken
+    );
+
+    return res.status(200).json({
+      success: true,
+      data,
+    });
+  } catch (_error) {
+    return res.status(401).json({
+      success: false,
+      message: 'No se pudo validar tu cuenta de Gmail',
+    });
+  }
+};
+
+export const registerGoogleReceptionist = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const validation = googleReceptionistRegisterSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos inválidos',
+        errors: validation.error.flatten(),
+      });
+    }
+
+    const data = await authService.registerGoogleReceptionist(
+      validation.data.supabaseAccessToken,
+      validation.data.nombre_completo
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: 'Recepcionista registrada correctamente',
+      data,
+    });
+  } catch (_error) {
+    return res.status(400).json({
+      success: false,
+      message: 'No se pudo registrar la cuenta de recepción',
+    });
+  }
 };

@@ -14,6 +14,72 @@ type TokenPayload = {
   rol: string;
 };
 
+type AuthUserRow = {
+  id: string;
+  nombre_completo: string;
+  email: string;
+  rol: string;
+  activo: boolean;
+  password_hash?: string;
+};
+
+const createSessionForUser = async (user: AuthUserRow) => {
+  const payload: TokenPayload = {
+    id: user.id,
+    email: user.email,
+    rol: user.rol,
+  };
+
+  const accessToken = generateAccessToken(payload);
+  const refreshToken = generateRefreshToken(payload);
+
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  await supabase.from('sesiones').insert({
+    id: uuidv4(),
+    usuario_id: user.id,
+    token_refresco: refreshToken,
+    expira_en: expiresAt.toISOString(),
+    revocado: false,
+  });
+
+  await supabase
+    .from('usuarios')
+    .update({ ultimo_login: new Date().toISOString() })
+    .eq('id', user.id);
+
+  return {
+    accessToken,
+    refreshToken,
+    user: {
+      id: user.id,
+      nombre_completo: user.nombre_completo,
+      email: user.email,
+      rol: user.rol,
+    },
+  };
+};
+
+const getGoogleProfile = async (supabaseAccessToken: string) => {
+  const { data, error } = await supabase.auth.getUser(supabaseAccessToken);
+
+  if (error || !data.user?.email) {
+    throw new Error('INVALID_GOOGLE_TOKEN');
+  }
+
+  const metadata = data.user.user_metadata || {};
+  const fullName =
+    metadata.full_name ||
+    metadata.name ||
+    data.user.email.split('@')[0].replace(/[._-]+/g, ' ');
+
+  return {
+    email: data.user.email.toLowerCase(),
+    nombre_completo: String(fullName).trim(),
+  };
+};
+
 export const authService = {
   async register(data: {
     nombre_completo: string;
@@ -72,41 +138,80 @@ export const authService = {
       throw new Error('INVALID_CREDENTIALS');
     }
 
-    const payload: TokenPayload = {
-      id: user.id,
-      email: user.email,
-      rol: user.rol,
-    };
+    return createSessionForUser(user);
+  },
 
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken(payload);
+  async googleSession(supabaseAccessToken: string) {
+    const googleProfile = await getGoogleProfile(supabaseAccessToken);
 
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-
-    await supabase.from('sesiones').insert({
-      id: uuidv4(),
-      usuario_id: user.id,
-      token_refresco: refreshToken,
-      expira_en: expiresAt.toISOString(),
-      revocado: false,
-    });
-
-    await supabase
+    const { data: user, error } = await supabase
       .from('usuarios')
-      .update({ ultimo_login: new Date().toISOString() })
-      .eq('id', user.id);
+      .select('id, nombre_completo, email, rol, activo')
+      .eq('email', googleProfile.email)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!user) {
+      return {
+        status: 'requires_role_selection',
+        email: googleProfile.email,
+        nombre_completo: googleProfile.nombre_completo,
+      };
+    }
+
+    if (!user.activo) {
+      return {
+        status: 'inactive',
+        email: googleProfile.email,
+        nombre_completo: user.nombre_completo,
+      };
+    }
 
     return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        nombre_completo: user.nombre_completo,
-        email: user.email,
-        rol: user.rol,
-      },
+      status: 'authenticated',
+      ...(await createSessionForUser(user)),
     };
+  },
+
+  async registerGoogleReceptionist(
+    supabaseAccessToken: string,
+    nombre_completo: string
+  ) {
+    const googleProfile = await getGoogleProfile(supabaseAccessToken);
+
+    const { data: existingUser, error: existingUserError } = await supabase
+      .from('usuarios')
+      .select('id, nombre_completo, email, rol, activo')
+      .eq('email', googleProfile.email)
+      .maybeSingle();
+
+    if (existingUserError) throw existingUserError;
+
+    if (existingUser) {
+      if (!existingUser.activo) {
+        throw new Error('INACTIVE_USER');
+      }
+
+      return createSessionForUser(existingUser);
+    }
+
+    const { data: newUser, error } = await supabase
+      .from('usuarios')
+      .insert({
+        id: uuidv4(),
+        nombre_completo,
+        email: googleProfile.email,
+        password_hash: `oauth:google:${googleProfile.email}`,
+        rol: 'recepcionista',
+        activo: true,
+      })
+      .select('id, nombre_completo, email, rol, activo')
+      .single();
+
+    if (error) throw error;
+
+    return createSessionForUser(newUser);
   },
 
   async refresh(oldRefreshToken: string) {

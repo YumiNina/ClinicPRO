@@ -82,16 +82,22 @@ Recepción:
 
 Admin:
 - Dashboard con datos reales.
+- Gestión de usuarios registrados.
 - Registro de clínicas.
 - Registro de médicos.
 - Registro de pacientes.
 - Consulta global de citas.
+- Sin bandeja de entrada operativa; las notificaciones quedan enfocadas en roles clínicos/recepción.
 
 Médico:
 - Dashboard médico.
 - Agenda médica.
 - Historial de paciente.
 - Registro de notas/consulta médica.
+- Bandeja con citas nuevas, confirmadas o canceladas de su agenda.
+
+Recepción:
+- Bandeja con nuevos pacientes registrados y movimientos recientes de citas.
 
 Base de datos:
 - Schema SQL para Supabase.
@@ -285,6 +291,26 @@ El botón de Gmail usa:
 GET /api/auth/google
 ```
 
+Después de que Supabase devuelve el usuario de Google, Clinic Pro valida el correo con:
+
+```txt
+POST /api/auth/google/session
+```
+
+Reglas del flujo:
+
+- Si el Gmail ya existe en `usuarios`, entra con el rol registrado.
+- Si el Gmail no existe, se muestra una selección de rol.
+- Si el usuario elige `recepcionista`, puede completar un formulario breve y se crea su acceso.
+- Si el usuario elige `medico` o `admin`, no se crea ninguna cuenta automáticamente.
+- Para `medico` y `admin`, se muestra un mensaje indicando que debe solicitar el registro a administración.
+
+Registro permitido desde Gmail:
+
+```txt
+POST /api/auth/google/receptionist
+```
+
 Para que funcione, en Supabase debes habilitar:
 
 ```txt
@@ -331,6 +357,8 @@ Datos:
 
 ```txt
 GET    /api/admin/dashboard
+GET    /api/admin/users
+PATCH  /api/admin/users/:id
 GET    /api/citas
 POST   /api/citas
 GET    /api/citas/paciente/:id

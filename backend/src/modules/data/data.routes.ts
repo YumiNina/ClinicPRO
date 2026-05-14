@@ -15,6 +15,9 @@ const allowedTables = {
 
 type AllowedTable = keyof typeof allowedTables;
 type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'absent';
+type UserRole = 'admin' | 'medico' | 'recepcionista';
+
+const userRoles: UserRole[] = ['admin', 'medico', 'recepcionista'];
 
 const hasCompletedAppointment = async (patientId: string) => {
   const { data } = await supabase
@@ -191,6 +194,76 @@ router.get('/admin/dashboard', authorizeRoles('admin'), async (_req, res) => {
   });
 });
 
+router.get('/admin/users', authorizeRoles('admin'), async (_req, res) => {
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select('id, nombre_completo, email, rol, activo, ultimo_login, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) return res.status(500).json({ success: false, message: error.message });
+
+  const users = data || [];
+
+  return res.json({
+    success: true,
+    data: {
+      users,
+      stats: {
+        total: users.length,
+        activos: users.filter((user) => user.activo).length,
+        inactivos: users.filter((user) => !user.activo).length,
+        admins: users.filter((user) => user.rol === 'admin').length,
+        medicos: users.filter((user) => user.rol === 'medico').length,
+        recepcionistas: users.filter((user) => user.rol === 'recepcionista').length,
+      },
+    },
+  });
+});
+
+router.patch('/admin/users/:id', authorizeRoles('admin'), async (req: AuthRequest, res) => {
+  const userId = String(req.params.id);
+  const payload: { rol?: UserRole; activo?: boolean } = {};
+
+  if (req.body.rol !== undefined) {
+    if (!userRoles.includes(req.body.rol)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rol de usuario inválido',
+      });
+    }
+
+    payload.rol = req.body.rol;
+  }
+
+  if (req.body.activo !== undefined) {
+    payload.activo = Boolean(req.body.activo);
+  }
+
+  if (Object.keys(payload).length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'No hay cambios para aplicar',
+    });
+  }
+
+  if (req.user?.id === userId && (payload.activo === false || payload.rol !== undefined)) {
+    return res.status(400).json({
+      success: false,
+      message: 'No puedes cambiar tu propio rol ni desactivar tu cuenta administradora',
+    });
+  }
+
+  const { data, error } = await supabase
+    .from('usuarios')
+    .update(payload)
+    .eq('id', userId)
+    .select('id, nombre_completo, email, rol, activo, ultimo_login, created_at')
+    .single();
+
+  if (error) return res.status(400).json({ success: false, message: error.message });
+  return res.json({ success: true, data });
+});
+
 router.get('/citas', authorizeRoles('admin', 'recepcionista'), async (_req, res) => {
   const { data, error } = await supabase.from('citas').select('*').order('fecha', { ascending: false });
   if (error) return res.status(500).json({ success: false, message: error.message });
@@ -251,7 +324,24 @@ router.get('/citas/paciente/:id', async (req, res) => {
 });
 
 router.get('/citas/medico/:id', async (req, res) => {
-  let query = supabase.from('citas').select('*').eq('medico_id', req.params.id).order('hora');
+  const requestedDoctorId = String(req.params.id);
+  const doctorIds = new Set([requestedDoctorId]);
+
+  const { data: linkedDoctor } = await supabase
+    .from('medicos')
+    .select('id')
+    .eq('usuario_id', requestedDoctorId)
+    .maybeSingle();
+
+  if (linkedDoctor?.id) {
+    doctorIds.add(linkedDoctor.id);
+  }
+
+  let query = supabase
+    .from('citas')
+    .select('*')
+    .in('medico_id', Array.from(doctorIds))
+    .order('hora');
 
   if (typeof req.query.fecha === 'string') {
     query = query.eq('fecha', req.query.fecha);

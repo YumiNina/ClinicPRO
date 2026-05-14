@@ -175,6 +175,12 @@ export default function AdminDashboard() {
                 Ver Todas las Citas
               </Button>
             </Link>
+            <Link to="/admin/users">
+              <Button className="w-full justify-start" variant="outline">
+                <Users className="w-4 h-4 mr-2" />
+                Gestionar Usuarios
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 

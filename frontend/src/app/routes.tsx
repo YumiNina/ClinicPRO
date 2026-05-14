@@ -3,6 +3,7 @@ import AuthLayout from './layouts/AuthLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 import { ProtectedRoute, RoleProtectedRoute } from './layouts/ProtectedRoute';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers from './pages/admin/AdminUsers';
 import AllAppointments from './pages/admin/AllAppointments';
 import RegisterClinic from './pages/admin/RegisterClinic';
 import RegisterDoctor from './pages/admin/RegisterDoctor';
@@ -84,7 +85,7 @@ export const router = createBrowserRouter([
       { path: 'register-doctor', Component: RegisterDoctor },
       { path: 'register-patient', Component: RegisterPatient },
       { path: 'appointments', Component: AllAppointments },
-      { path: 'inbox', Component: Inbox },
+      { path: 'users', Component: AdminUsers },
       { path: 'profile', element: <Profile role="admin" /> },
     ],
   },

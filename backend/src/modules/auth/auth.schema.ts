@@ -38,3 +38,17 @@ export const loginSchema = z.object({
 export const refreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
+
+export const googleSessionSchema = z.object({
+  supabaseAccessToken: z.string().min(1, 'Token de Google requerido'),
+});
+
+export const googleReceptionistRegisterSchema = z.object({
+  supabaseAccessToken: z.string().min(1, 'Token de Google requerido'),
+  nombre_completo: z
+    .string()
+    .trim()
+    .min(3, 'El nombre debe tener mínimo 3 caracteres')
+    .max(150, 'El nombre es demasiado largo')
+    .regex(nameRegex, 'El nombre solo puede contener letras y espacios'),
+});
