@@ -716,7 +716,7 @@ Reportes:
 - `npm run test:coverage` genera reporte de cobertura en `coverage/`.
 - `reports/` y `coverage/` están ignorados por Git para no subir artefactos locales.
 
-Actualmente la suite local validada incluye 23 pruebas automatizadas: 16 en frontend y 7 en backend. Esto deja una base inicial suficiente para demostrar Week 13 Testing y también sirve como punto de partida para ampliar cobertura en CRUD de pacientes, citas, médicos y expedientes clínicos.
+Actualmente la suite local validada incluye 23 pruebas automatizadas: 16 en frontend y 7 en backend. Esto deja una base inicial suficiente para demostrar  Testing y también sirve como punto de partida para ampliar cobertura en CRUD de pacientes, citas, médicos y expedientes clínicos.
 
 Integración con GitHub Actions:
 
