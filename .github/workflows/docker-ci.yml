@@ -80,6 +80,15 @@ jobs:
         working-directory: frontend
         run: npm test
 
+      - name: Upload frontend test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dockerized-frontend-test-report
+          path: frontend/reports/junit.xml
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Build frontend
         working-directory: frontend
         run: npm run build
@@ -95,6 +104,15 @@ jobs:
       - name: Run backend tests
         working-directory: backend
         run: npm test
+
+      - name: Upload backend test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dockerized-backend-test-report
+          path: backend/reports/junit.xml
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Build backend
         working-directory: backend

@@ -4,6 +4,26 @@ Sistema de gestión clínica y administrativa desarrollado con React, Express, T
 
 Clinic Pro incluye autenticación JWT, roles, gestión de citas, datos clínicos, paneles por perfil y conexión con Supabase.
 
+## Problemática
+
+Muchas clínicas pequeñas y medianas todavía gestionan pacientes, citas y registros operativos con hojas de cálculo, mensajes sueltos o procesos manuales. Esto genera información duplicada, dificultad para saber qué citas están confirmadas, poca trazabilidad sobre quién modificó un registro y riesgo de que usuarios con roles distintos accedan a funciones que no les corresponden.
+
+Clinic Pro busca resolver esa fragmentación centralizando la operación diaria de una clínica en una sola aplicación web. El sistema separa claramente las responsabilidades de administración, personal médico y recepción, para que cada perfil trabaje con las herramientas necesarias sin exponer funciones sensibles.
+
+## Objetivo Del Proyecto
+
+El objetivo principal es construir una plataforma clínica moderna, segura y preparada para crecer, donde sea posible:
+
+- Autenticar usuarios internos de la clínica.
+- Redirigir a cada usuario según su rol real.
+- Controlar el acceso a pantallas y endpoints protegidos.
+- Registrar pacientes, médicos, clínicas, citas y consultas.
+- Mantener una base de datos centralizada en Supabase PostgreSQL.
+- Automatizar validaciones, builds, pruebas y generación de artefactos con GitHub Actions.
+- Ejecutar el proyecto de forma reproducible con Docker y Docker Compose.
+
+El sistema no está pensado como portal público para pacientes. En esta versión, los pacientes son registros clínicos administrados por personal autorizado; los únicos roles con acceso al sistema son `admin`, `medico` y `recepcionista`.
+
 ## Stack
 
 Frontend:
@@ -52,6 +72,8 @@ Rutas principales:
 Los pacientes no tienen usuario de ingreso propio. En Clinic Pro, los pacientes son registros clínicos gestionados por administración/recepción y consultados por el personal médico.
 
 ## Funcionalidades Implementadas
+
+El proyecto ya cuenta con una primera versión funcional de frontend, backend, base de datos, control de sesión, CI/CD, Docker y pruebas automatizadas. La implementación actual prioriza seguridad de acceso, separación por roles, flujo de login, gestión clínica básica y evidencia técnica para defensa académica/profesional.
 
 Autenticación:
 - Registro con validación Zod.
@@ -116,6 +138,24 @@ OAuth:
 - Endpoint backend para iniciar login con Google/Gmail.
 - Botón visual con icono Gmail en frontend.
 - Requiere activar Google Provider en Supabase y configurar credenciales OAuth de Google Cloud.
+
+CI/CD y calidad:
+- Workflow principal `CI Pipeline` para Pull Requests, push a `main` y ejecución manual.
+- Workflow reutilizable para validar frontend y backend con matriz de Node.js.
+- Workflow `Dockerized CI` para construir imágenes Docker y simular entrega controlada.
+- Jobs separados para validación, construcción de imagen y delivery/deploy simulado.
+- Caché de dependencias npm y caché Docker Buildx.
+- Artefactos de build, reportes JUnit y evidencia de imágenes Docker.
+- Permisos mínimos para `GITHUB_TOKEN`.
+- Control de concurrencia para cancelar ejecuciones antiguas de la misma rama o PR.
+
+Testing:
+- Suite automatizada con Vitest en frontend y backend.
+- Testing Library + jsdom para validar comportamiento visible en componentes React.
+- Pruebas unitarias para validaciones de formularios, reglas de roles y schemas de autenticación.
+- Prueba de integración para rutas protegidas y redirección por rol.
+- Reportes JUnit para evidencia en GitHub Actions.
+- Comando de cobertura para revisar qué lógica queda cubierta por pruebas.
 
 ## Estructura
 
@@ -603,6 +643,97 @@ Evidencia generada:
 Seguridad avanzada:
 
 Las acciones se mantienen como `@v4`, `@v3` y `@v6` para legibilidad académica. En producción estricta se recomienda fijarlas por commit SHA y documentar la versión humana en comentarios.
+
+## Testing
+
+El proyecto usa **Vitest** como herramienta principal de testing porque frontend y backend son Node.js/TypeScript, y el frontend usa Vite + React. En frontend se agregó **Testing Library** con `jsdom` para probar comportamiento visible de componentes sin depender de clases CSS ni estructura interna del DOM.
+
+La suite de pruebas se diseñó para validar reglas que pueden afectar directamente el uso real del sistema: ingreso por rol, bloqueo de rutas, validaciones de formularios, restricciones de fechas y schemas de autenticación. La idea no es probar detalles visuales frágiles, sino comportamientos que si fallan podrían permitir datos incorrectos, accesos indebidos o flujos rotos.
+
+Configuración:
+
+```txt
+frontend/vitest.config.ts
+frontend/src/test/setup.ts
+backend/vitest.config.ts
+```
+
+Comandos locales:
+
+```bash
+cd frontend
+npm test
+npm run test:coverage
+
+cd backend
+npm test
+npm run test:coverage
+```
+
+Pruebas unitarias agregadas:
+
+- `frontend/src/utils/form-validation.test.ts`: validación de nombres, CI, teléfonos, email y reglas de fechas.
+- `frontend/src/utils/roles.test.ts`: redirección por rol y normalización `doctor` -> `medico`.
+- `backend/src/modules/auth/auth.schema.test.ts`: schemas Zod de registro, login y Google/Gmail.
+
+Estas pruebas unitarias aíslan piezas pequeñas de lógica para confirmar que las reglas del negocio funcionan sin depender de navegador real, base de datos ni servicios externos. Esto permite detectar rápido errores como aceptar letras donde solo deben ir números, permitir roles no válidos o registrar fechas fuera del rango permitido.
+
+Prueba de integración agregada:
+
+- `frontend/src/app/layouts/ProtectedRoute.test.tsx`: integra `RoleProtectedRoute`, React Router y el hook de autenticación mockeado para validar acceso permitido, redirección por rol y bloqueo de usuario no autenticado.
+
+Esta prueba de integración cubre una parte crítica del producto: el control de acceso en la interfaz. Verifica que el usuario correcto pueda entrar a su panel, que un rol incorrecto sea redirigido y que una persona sin sesión no pueda entrar directamente por URL.
+
+Casos felices cubiertos:
+
+- Nombre, CI, teléfono y email válidos.
+- Fechas válidas dentro del año actual.
+- Rutas correctas para `admin`, `medico` y `recepcionista`.
+- Registro válido de recepcionista.
+- Login con email y password válidos.
+- Usuario autorizado ve el contenido protegido.
+
+Casos de fallo cubiertos:
+
+- Nombre con números.
+- CI/teléfono con formato inválido.
+- Email malformado.
+- Fecha futura o del siguiente año.
+- Rol no soportado como `patient`.
+- Password débil.
+- Usuario autenticado con rol incorrecto.
+- Usuario no autenticado redirigido al login.
+
+Prueba diseñada con enfoque TDD:
+
+- Regla: una cita solo puede registrarse desde hoy hasta el fin del año actual.
+- Prueba: `isDateWithinCurrentYearFromToday` rechaza fechas pasadas y `2027-01-01`.
+- Ciclo documentado: primero se define la expectativa de negocio en test, luego se implementa/ajusta el helper para pasar la prueba y finalmente se reutiliza en formularios y validaciones.
+
+Reportes:
+
+- `npm test` genera JUnit XML en `frontend/reports/junit.xml` y `backend/reports/junit.xml`.
+- `npm run test:coverage` genera reporte de cobertura en `coverage/`.
+- `reports/` y `coverage/` están ignorados por Git para no subir artefactos locales.
+
+Actualmente la suite local validada incluye 23 pruebas automatizadas: 16 en frontend y 7 en backend. Esto deja una base inicial suficiente para demostrar Week 13 Testing y también sirve como punto de partida para ampliar cobertura en CRUD de pacientes, citas, médicos y expedientes clínicos.
+
+Integración con GitHub Actions:
+
+- `CI Pipeline` ejecuta `npm test` en el job `validate` para frontend y backend mediante el workflow reutilizable.
+- `Dockerized CI` ejecuta `npm test` dentro del job `validate`, que corre en `node:20-alpine`.
+- Ambos workflows suben reportes JUnit como artefactos.
+- Si una prueba falla, el workflow falla y los jobs posteriores no continúan.
+
+Evidencia para defensa:
+
+- Mostrar los archivos `*.test.ts` y `*.test.tsx`.
+- Mostrar mínimo cinco unit tests en `form-validation`, `roles` y `auth.schema`.
+- Mostrar la prueba de integración de `RoleProtectedRoute`.
+- Ejecutar localmente `npm test` en frontend y backend.
+- En GitHub Actions mostrar logs de `Run tests`.
+- Descargar artefactos JUnit generados por el pipeline.
+- Explicar que los tests cubren reglas de negocio, errores comunes y control de acceso antes de permitir merge a `main`.
 
 ## Verificación
 
