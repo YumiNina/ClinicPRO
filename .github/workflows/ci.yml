@@ -1,0 +1,59 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    paths:
+      - frontend/**
+      - backend/**
+      - .github/workflows/**
+      - docker-compose.yml
+      - README.md
+  push:
+    branches:
+      - main
+    paths:
+      - frontend/**
+      - backend/**
+      - .github/workflows/**
+      - docker-compose.yml
+      - README.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: validate / ${{ matrix.project-name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project-name: frontend
+            working-directory: frontend
+            artifact-path: dist
+          - project-name: backend
+            working-directory: backend
+            artifact-path: dist
+    uses: ./.github/workflows/reusable-node-validate.yml
+    with:
+      project-name: ${{ matrix.project-name }}
+      working-directory: ${{ matrix.working-directory }}
+      artifact-path: ${{ matrix.artifact-path }}
+
+  delivery:
+    name: delivery
+    runs-on: ubuntu-latest
+    needs: validate
+    environment: production
+
+    steps:
+      - name: Simulate controlled delivery
+        run: |
+          echo "Validation succeeded for frontend and backend."
+          echo "Build artifacts were generated and uploaded."
+          echo "Production delivery is intentionally simulated for this academic pipeline."

@@ -3,6 +3,14 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { apiClient } from '../../services/api-client';
+import {
+  isDigits,
+  isEmail,
+  isLetters,
+  isPhone,
+  keepDigits,
+  keepLetters,
+} from '../../utils/form-validation';
 import { Button } from '../components/ui/button';
 import {
   Card,
@@ -28,43 +36,38 @@ export default function Register() {
   });
 
   const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const nextValue = ['fullName'].includes(field)
+      ? keepLetters(value)
+      : ['ci', 'phone'].includes(field)
+        ? keepDigits(value)
+        : value;
+
+    setFormData((prev) => ({ ...prev, [field]: nextValue }));
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Validar Nombre Completo (solo letras y espacios, mín 3 caracteres)
-    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
-    if (formData.fullName.trim().length < 3 || !nameRegex.test(formData.fullName)) {
+    if (!isLetters(formData.fullName)) {
       toast.error('Ingrese un nombre válido (solo letras, mín. 3 caracteres)');
       return;
     }
 
-    // 2. Validar Carnet de Identidad CI (alfanumérico, mín 5 caracteres)
-    const ciRegex = /^[a-zA-Z0-9]+$/;
-    if (formData.ci.trim().length < 5 || !ciRegex.test(formData.ci)) {
-      toast.error(
-        'Ingrese un Carnet de Identidad válido (mín. 5 caracteres alfanuméricos sin espacios)',
-      );
+    if (!isDigits(formData.ci, 5, 12)) {
+      toast.error('Ingrese un Carnet de Identidad válido (solo números, mín. 5 dígitos)');
       return;
     }
 
-    // 3. Validar Correo Electrónico
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
+    if (!isEmail(formData.email)) {
       toast.error('Ingrese un correo electrónico válido');
       return;
     }
 
-    // 4. Validar Teléfono (solo números, permitiendo +, mín 7 u 8 dígitos)
-    const phoneRegex = /^[0-9+]{8,}$/;
-    if (!phoneRegex.test(formData.phone)) {
-      toast.error('Ingrese un número de teléfono válido (mínimo 8 dígitos numéricos)');
+    if (!isPhone(formData.phone)) {
+      toast.error('Ingrese un número de teléfono válido (solo números, 7 a 12 dígitos)');
       return;
     }
 
-    // 5. Validar Contraseñas
     const passwordRegex = /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[\W_]).{8,}$/;
     if (!passwordRegex.test(formData.password)) {
       toast.error(
@@ -107,7 +110,7 @@ export default function Register() {
     <Card className="shadow-lg border border-gray-200 bg-white">
       <CardHeader className="space-y-1 pb-6 pt-6">
         <CardTitle className="text-2xl">Crear Cuenta</CardTitle>
-        <CardDescription>Complete el formulario para registrarse como paciente</CardDescription>
+        <CardDescription>Complete el formulario para registrarse como recepcionista</CardDescription>
       </CardHeader>
 
       <form onSubmit={handleRegister}>
@@ -141,6 +144,7 @@ export default function Register() {
                 value={formData.ci}
                 onChange={(e) => handleChange('ci', e.target.value)}
                 className="pl-9 h-10"
+                inputMode="numeric"
                 required
               />
             </div>
@@ -177,6 +181,7 @@ export default function Register() {
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 className="pl-9 h-10"
+                inputMode="numeric"
                 required
               />
             </div>

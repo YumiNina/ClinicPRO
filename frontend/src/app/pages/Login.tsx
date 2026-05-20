@@ -50,6 +50,7 @@ const Login = () => {
     useState<GoogleRoleChoice | null>(null);
   const [googleName, setGoogleName] = useState('');
   const [googleMessage, setGoogleMessage] = useState('');
+  const [loginMessage, setLoginMessage] = useState('');
   const [isGoogleProcessing, setIsGoogleProcessing] = useState(false);
   const hasProcessedGoogleCallback = useRef(false);
 
@@ -124,6 +125,7 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginMessage('');
 
     try {
       const response = await apiClient.post('/auth/login', {
@@ -137,16 +139,23 @@ const Login = () => {
 
       navigate(getDefaultPathForRole(user.rol), { replace: true });
     } catch (_error) {
-      alert('Email o contraseña incorrectos');
+      setLoginMessage(
+        'No pudimos iniciar sesión con esos datos. Revisa tu correo y contraseña e intenta nuevamente.'
+      );
     }
   };
 
   const handleGoogleLogin = async () => {
+    setLoginMessage('');
+    setGoogleMessage('');
+
     try {
       const response = await apiClient.get('/auth/google');
       window.location.assign(response.data.data.url);
     } catch (_error) {
-      alert('No se pudo iniciar sesión con Google');
+      setLoginMessage(
+        'No pudimos abrir el ingreso con Gmail en este momento. Verifica la configuración de Google en Supabase o intenta más tarde.'
+      );
     }
   };
 
@@ -259,6 +268,13 @@ const Login = () => {
             {googleMessage && (
               <div className="mb-5 rounded-xl border border-cyan-400/20 bg-slate-800 p-4 text-sm text-slate-200">
                 {googleMessage}
+              </div>
+            )}
+
+            {loginMessage && !googleDecision && (
+              <div className="mb-5 rounded-xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-50">
+                <p className="font-medium text-amber-100">No se pudo iniciar sesión</p>
+                <p className="mt-1 text-amber-50/80">{loginMessage}</p>
               </div>
             )}
 

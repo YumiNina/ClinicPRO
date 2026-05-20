@@ -5,6 +5,11 @@ import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useAuth } from '../../../hooks/useAuth';
 import { useCitas } from '../../../hooks/useCitas';
+import {
+  currentYearEndInputValue,
+  isDateWithinCurrentYearFromToday,
+  todayInputValue,
+} from '../../../utils/form-validation';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Button } from '../../components/ui/button';
 import { Calendar } from '../../components/ui/calendar';
@@ -35,6 +40,11 @@ export default function BookAppointment() {
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [selectedTime, setSelectedTime] = useState('');
+  const minAppointmentDate = useMemo(() => new Date(`${todayInputValue()}T00:00:00`), []);
+  const maxAppointmentDate = useMemo(
+    () => new Date(`${currentYearEndInputValue()}T23:59:59`),
+    [],
+  );
 
   const specialties = [
     'Cardiología',
@@ -119,6 +129,10 @@ export default function BookAppointment() {
       toast.error('Por favor selecciona una fecha y hora');
       return;
     }
+    if (step === 3 && !isDateWithinCurrentYearFromToday(selectedDateString)) {
+      toast.error('La cita debe programarse dentro del año actual');
+      return;
+    }
 
     if (step < 4) {
       setStep(step + 1);
@@ -139,6 +153,11 @@ export default function BookAppointment() {
     }
 
     const formattedDate = selectedDateString;
+
+    if (!isDateWithinCurrentYearFromToday(formattedDate)) {
+      toast.error('La cita debe programarse dentro del año actual');
+      return;
+    }
 
     // La hora ya la tenemos en formato HH:mm desde los botones, pero la limpiamos por si acaso
     const formattedTime = selectedTime.substring(0, 5);
@@ -306,7 +325,7 @@ export default function BookAppointment() {
                       setSelectedDate(date);
                       setSelectedTime('');
                     }}
-                    disabled={(date) => date < new Date() || date < new Date('1900-01-01')}
+                    disabled={(date) => date < minAppointmentDate || date > maxAppointmentDate}
                     className="rounded-md border"
                   />
                 </div>

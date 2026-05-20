@@ -3,6 +3,7 @@ services:
   backend:
     build:
       context: ./backend
+      target: dev
 
     container_name: clinicpro_backend
 
@@ -21,6 +22,7 @@ services:
   frontend:
     build:
       context: ./frontend
+      target: dev
 
     container_name: clinicpro_frontend
 

@@ -14,4 +14,3 @@ yarn-error.log*
 pnpm-debug.log*
 *.log
 Dockerfile
-README.md

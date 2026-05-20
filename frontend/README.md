@@ -38,7 +38,7 @@ src/
 │   ├── pages/               # Páginas lógicas de la aplicación organizadas por rol
 │   │   ├── admin/           # (Dashboards de admin, registros de usuarios/clínicas)
 │   │   ├── doctor/          # (Agenda, vista de historia clínica de pacientes)
-│   │   ├── patient/         # (Reservar citas, historial médico)
+│   │   ├── patient/         # Páginas heredadas/no expuestas como login de paciente
 │   │   └── shared/          # (Páginas comunes a todos los roles: Perfil, Bandeja de entrada)
 │   └── routes.tsx           # El "cerebro" del enrutamiento
 ├── styles/                  # Estilos definidos a nivel global
@@ -51,17 +51,17 @@ src/
 
 La aplicación no se basa en rutas sueltas. Utilizamos el concepto de **Layouts Anidados**:
 1.  **AuthLayout**: Envoltorio para páginas públicas (Login, Register, Recover Password). Todo lo que no requiere estar autenticado.
-2.  **DashboardLayout**: El esqueleto maestro interno. Dependiendo del `role` (`"patient"`, `"doctor"`, `"admin"`, `"reception"`), este layout cambia la barra lateral para mostrar las opciones adecuadas a cada tipo de usuario.
+2.  **DashboardLayout**: El esqueleto maestro interno. Dependiendo del `role` (`"doctor"`, `"admin"`, `"reception"`), este layout cambia la barra lateral para mostrar las opciones adecuadas a cada tipo de usuario.
 
 En `routes.tsx`, el registro de rutas usa el objeto de `createBrowserRouter`:
 *Ejemplo conceptual de una rama:*
 ```tsx
 {
-  path: '/paciente',
-  Component: PatientLayout, // Layout con rol de paciente
+  path: '/doctor',
+  Component: DoctorLayout,
   children: [
-    { index: true, Component: PatientDashboard },
-    { path: 'perfil', element: <Profile role="patient" /> }
+    { index: true, Component: DoctorDashboard },
+    { path: 'agenda', Component: DoctorAgenda }
   ]
 }
 ```
@@ -92,15 +92,11 @@ El sistema soporta 4 vistas internas principales:
     *   **DoctorAgenda**: Su calendario de turnos. Incluye la capacidad de ver citas agendadas y utilizar **Cuadros de Diálogo (Modales de Radix UI)** para Editar o Cancelar dichas consultas.
     *   **PatientHistoryView**: Revisión médica específica de un paciente.
 
-### 🤒 Paciente (`/patient`)
-*   Responsabilidad: Auto-gestionar sus turnos y su salud.
-*   Páginas principales:
-    *   **BookAppointment**: Flujo para agendar.
-    *   **MyAppointments**: Citas vigentes/previas.
-    *   **MedicalHistory**: Historial unificado.
+### Pacientes
+Los pacientes no tienen login propio. Son registros clínicos administrados por recepción/administración y consultados por médicos.
 
 ### 🔗 Módulos Compartidos (`/shared`)
-*   **Perfil (`Profile.tsx`)**: Un componente dinámico que, gracias a recibir el `role` vía Props, muta y renderiza condicionalmente. Si es Paciente mostrará "Tipo de Sangre", si es Doctor mostrará "Licencia Médica".
+*   **Perfil (`Profile.tsx`)**: Un componente dinámico que, gracias a recibir el `role` vía Props, muta y renderiza condicionalmente según el perfil interno.
 *   **Bandeja de Entrada (`Inbox.tsx`)**: Sistema de alertas/mensajes general.
 
 ---
@@ -127,8 +123,8 @@ El proyecto no usa herramientas antiguas ni deja el formateo al libre albedrío 
 **P: ¿Para qué usaron los Radix UI Primitives en los Modales (Dialogs)?**
 **R:** Se usaron en secciones como la Agenda del Doctor para abrir los modales de "Editar/Cancelar Consulta". Radix nos da funciones de accesibilidad (control de enfoque de teclado, escape para salir, "screen readers") automatizadas y nosotros con Tailwind CSS solo nos preocupamos de pintarlo estéticamente.
 
-**P: ¿Cómo gestionan que un Doctor no vea información que el Paciente debería o viceversa?**
-**R:** A nivel componente, pasamos una *prop* llamada `role`. Por ejemplo en `<Profile role="doctor" />`, usamos renderizado condicional clásico en React (`{role === 'doctor' && <JSX>}`). A nivel navegación mayor, React Router protege el acceso envolviendo cada subgrupo bajo Plantillas de Layout diferentes.
+**P: ¿Cómo gestionan que cada perfil vea solo lo que corresponde?**
+**R:** A nivel navegación usamos `RoleProtectedRoute` para separar administrador, médico y recepcionista. Los pacientes no tienen login propio; son registros clínicos consultados o gestionados desde los perfiles internos autorizados.
 
 **P: ¿Qué es el archivo `biome.json`?**
 **R:** Es el archivo de configuración equivalente de ESLint. Nosotros instruimos a la aplicación a correr `npm run check:all` que activa Biome. Biome nos avisa si nos faltó declarar los tipos TS e incluso formatea (borra espacios muertos y estructura las llaves) nuestro archivo en menos de 100 milisegundos.

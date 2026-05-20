@@ -18,6 +18,159 @@ type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | '
 type UserRole = 'admin' | 'medico' | 'recepcionista';
 
 const userRoles: UserRole[] = ['admin', 'medico', 'recepcionista'];
+const lettersRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s.'-]+$/;
+const digitsRegex = /^\d+$/;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const licenseRegex = /^[A-Za-z0-9-]{4,30}$/;
+
+type AnyPayload = Record<string, unknown>;
+
+const normalizeValue = (value: unknown) => String(value ?? '').trim();
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const currentYearEndIso = () => `${new Date().getFullYear()}-12-31`;
+const isIsoDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+const isLetters = (value: unknown, minLength = 3) => {
+  const normalized = normalizeValue(value);
+  return normalized.length >= minLength && lettersRegex.test(normalized);
+};
+const isDigits = (value: unknown, minLength = 5, maxLength = 15) => {
+  const normalized = normalizeValue(value);
+  return (
+    normalized.length >= minLength &&
+    normalized.length <= maxLength &&
+    digitsRegex.test(normalized)
+  );
+};
+const isPhone = (value: unknown) => isDigits(value, 7, 12);
+const isEmail = (value: unknown) => emailRegex.test(normalizeValue(value));
+const isDateNotFuture = (value: unknown) => {
+  const normalized = normalizeValue(value);
+  return isIsoDate(normalized) && normalized <= todayIso();
+};
+const isAppointmentDateAllowed = (value: unknown) => {
+  const normalized = normalizeValue(value);
+  return isIsoDate(normalized) && normalized >= todayIso() && normalized <= currentYearEndIso();
+};
+const appToDbAppointmentStatus: Record<string, string> = {
+  pending: 'pendiente',
+  confirmed: 'confirmada',
+  completed: 'completada',
+  cancelled: 'cancelada',
+  absent: 'no_asistio',
+};
+const dbToAppAppointmentStatus: Record<string, AppointmentStatus> = {
+  pendiente: 'pending',
+  confirmada: 'confirmed',
+  completada: 'completed',
+  cancelada: 'cancelled',
+  no_asistio: 'absent',
+};
+const toDbAppointmentStatus = (value: unknown) => {
+  const normalized = normalizeValue(value);
+  return appToDbAppointmentStatus[normalized] || normalized;
+};
+const toAppAppointmentStatus = (value: unknown) => {
+  const normalized = normalizeValue(value);
+  return dbToAppAppointmentStatus[normalized] || (normalized as AppointmentStatus);
+};
+const mapCitaFromDb = <T extends { estado?: unknown }>(appointment: T) => ({
+  ...appointment,
+  estado: toAppAppointmentStatus(appointment.estado),
+});
+const mapCitasFromDb = <T extends { estado?: unknown }>(appointments: T[] = []) =>
+  appointments.map(mapCitaFromDb);
+
+const validatePacientePayload = (body: AnyPayload, partial = false) => {
+  if ((!partial || body.nombre_completo !== undefined) && !isLetters(body.nombre_completo)) {
+    return 'El nombre del paciente debe contener solo letras';
+  }
+
+  if ((!partial || body.ci !== undefined) && !isDigits(body.ci, 5, 12)) {
+    return 'El CI del paciente debe contener solo números, entre 5 y 12 dígitos';
+  }
+
+  if ((!partial || body.fecha_nacimiento !== undefined) && !isDateNotFuture(body.fecha_nacimiento)) {
+    return 'La fecha de nacimiento no puede ser futura';
+  }
+
+  if ((!partial || body.telefono !== undefined) && !isPhone(body.telefono)) {
+    return 'El teléfono del paciente debe contener solo números, entre 7 y 12 dígitos';
+  }
+
+  if ((!partial || body.email !== undefined) && !isEmail(body.email)) {
+    return 'El correo del paciente no tiene un formato válido';
+  }
+
+  return null;
+};
+
+const validateClinicaPayload = (body: AnyPayload, partial = false) => {
+  if ((!partial || body.nombre !== undefined) && normalizeValue(body.nombre).length < 3) {
+    return 'El nombre de la clínica debe tener al menos 3 caracteres';
+  }
+
+  if ((!partial || body.ciudad !== undefined) && !isLetters(body.ciudad, 2)) {
+    return 'La ciudad debe contener solo letras';
+  }
+
+  if ((!partial || body.telefono !== undefined) && !isPhone(body.telefono)) {
+    return 'El teléfono de la clínica debe contener solo números, entre 7 y 12 dígitos';
+  }
+
+  if ((!partial || body.email !== undefined) && !isEmail(body.email)) {
+    return 'El correo de la clínica no tiene un formato válido';
+  }
+
+  return null;
+};
+
+const validateMedicoPayload = (body: AnyPayload, partial = false) => {
+  if ((!partial || body.nombre_completo !== undefined) && !isLetters(body.nombre_completo)) {
+    return 'El nombre del médico debe contener solo letras';
+  }
+
+  if ((!partial || body.ci !== undefined) && !isDigits(body.ci, 5, 12)) {
+    return 'El CI del médico debe contener solo números, entre 5 y 12 dígitos';
+  }
+
+  if ((!partial || body.email !== undefined) && !isEmail(body.email)) {
+    return 'El correo del médico no tiene un formato válido';
+  }
+
+  if ((!partial || body.telefono !== undefined) && !isPhone(body.telefono)) {
+    return 'El teléfono del médico debe contener solo números, entre 7 y 12 dígitos';
+  }
+
+  if ((!partial || body.especialidad !== undefined) && normalizeValue(body.especialidad).length < 3) {
+    return 'Selecciona una especialidad válida';
+  }
+
+  if ((!partial || body.licencia_medica !== undefined) && !licenseRegex.test(normalizeValue(body.licencia_medica))) {
+    return 'La licencia médica debe tener entre 4 y 30 caracteres alfanuméricos';
+  }
+
+  return null;
+};
+
+const validateCrudPayload = (table: AllowedTable, body: AnyPayload, partial = false) => {
+  if (table === 'medicos') return validateMedicoPayload(body, partial);
+  if (table === 'clinicas') return validateClinicaPayload(body, partial);
+  return null;
+};
+
+const normalizePacientePayload = (body: AnyPayload) => ({
+  ...body,
+  ...(body.nombre_completo !== undefined ? { nombre_apellido: body.nombre_completo } : {}),
+  ...(body.ci !== undefined ? { dni_nie: body.ci } : {}),
+});
+
+const normalizeCitaPayload = (body: AnyPayload) => ({
+  ...body,
+  ...(body.estado !== undefined ? { estado: toDbAppointmentStatus(body.estado) } : {}),
+  ...(body.fecha !== undefined && body.hora !== undefined
+    ? { fecha_hora: `${normalizeValue(body.fecha)}T${normalizeValue(body.hora)}:00` }
+    : {}),
+});
 
 const hasCompletedAppointment = async (patientId: string) => {
   const { data } = await supabase
@@ -74,7 +227,17 @@ const getPacienteRouter = () => {
   });
 
   pacientes.post('/', async (req, res) => {
-    const { data, error } = await supabase.from('pacientes').insert(req.body).select('*').single();
+    const validationError = validatePacientePayload(req.body);
+
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
+    const { data, error } = await supabase
+      .from('pacientes')
+      .insert(normalizePacientePayload(req.body))
+      .select('*')
+      .single();
 
     if (error) return res.status(400).json({ success: false, message: error.message });
     return res.status(201).json({ success: true, data });
@@ -90,9 +253,15 @@ const getPacienteRouter = () => {
       });
     }
 
+    const validationError = validatePacientePayload(req.body, true);
+
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
     const { data, error } = await supabase
       .from('pacientes')
-      .update(req.body)
+      .update(normalizePacientePayload(req.body))
       .eq('id', patientId)
       .select('*')
       .single();
@@ -132,6 +301,12 @@ const getCrudRouter = (table: AllowedTable) => {
   });
 
   crud.post('/', async (req, res) => {
+    const validationError = validateCrudPayload(table, req.body);
+
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
     const { data, error } = await supabase.from(tableName).insert(req.body).select('*').single();
 
     if (error) return res.status(400).json({ success: false, message: error.message });
@@ -139,6 +314,12 @@ const getCrudRouter = (table: AllowedTable) => {
   });
 
   crud.put('/:id', async (req, res) => {
+    const validationError = validateCrudPayload(table, req.body, true);
+
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
     const { data, error } = await supabase
       .from(tableName)
       .update(req.body)
@@ -267,7 +448,7 @@ router.patch('/admin/users/:id', authorizeRoles('admin'), async (req: AuthReques
 router.get('/citas', authorizeRoles('admin', 'recepcionista'), async (_req, res) => {
   const { data, error } = await supabase.from('citas').select('*').order('fecha', { ascending: false });
   if (error) return res.status(500).json({ success: false, message: error.message });
-  return res.json(data || []);
+  return res.json(mapCitasFromDb(data || []));
 });
 
 router.post('/citas', authorizeRoles('admin', 'recepcionista'), async (req: AuthRequest, res) => {
@@ -275,6 +456,14 @@ router.post('/citas', authorizeRoles('admin', 'recepcionista'), async (req: Auth
     ...req.body,
     estado: req.body.estado || 'pending',
   };
+  const normalizedPayload = normalizeCitaPayload(payload);
+
+  if (!isAppointmentDateAllowed(payload.fecha)) {
+    return res.status(400).json({
+      success: false,
+      message: 'La fecha de la cita debe estar dentro del año actual y no puede ser pasada',
+    });
+  }
 
   const { data: activePenalty } = await supabase
     .from('penalizaciones')
@@ -297,7 +486,7 @@ router.post('/citas', authorizeRoles('admin', 'recepcionista'), async (req: Auth
     .eq('medico_id', payload.medico_id)
     .eq('fecha', payload.fecha)
     .eq('hora', payload.hora)
-    .in('estado', ['pending', 'confirmed'])
+    .in('estado', ['pending', 'confirmed', 'pendiente', 'confirmada'])
     .maybeSingle();
 
   if (occupiedSlot) {
@@ -307,9 +496,9 @@ router.post('/citas', authorizeRoles('admin', 'recepcionista'), async (req: Auth
     });
   }
 
-  const { data, error } = await supabase.from('citas').insert(payload).select('*').single();
+  const { data, error } = await supabase.from('citas').insert(normalizedPayload).select('*').single();
   if (error) return res.status(400).json({ success: false, message: error.message });
-  return res.status(201).json(data);
+  return res.status(201).json(mapCitaFromDb(data));
 });
 
 router.get('/citas/paciente/:id', async (req, res) => {
@@ -320,7 +509,7 @@ router.get('/citas/paciente/:id', async (req, res) => {
     .order('fecha', { ascending: false });
 
   if (error) return res.status(500).json({ success: false, message: error.message });
-  return res.json(data || []);
+  return res.json(mapCitasFromDb(data || []));
 });
 
 router.get('/citas/medico/:id', async (req, res) => {
@@ -349,7 +538,7 @@ router.get('/citas/medico/:id', async (req, res) => {
 
   const { data, error } = await query;
   if (error) return res.status(500).json({ success: false, message: error.message });
-  return res.json(data || []);
+  return res.json(mapCitasFromDb(data || []));
 });
 
 router.patch('/citas/:id/estado', authorizeRoles('admin', 'recepcionista', 'medico'), async (req: AuthRequest, res) => {
@@ -371,13 +560,13 @@ router.patch('/citas/:id/estado', authorizeRoles('admin', 'recepcionista', 'medi
 
   const { data, error } = await supabase
     .from('citas')
-    .update({ estado: nextStatus })
+    .update(normalizeCitaPayload({ estado: nextStatus }))
     .eq('id', req.params.id)
     .select('*')
     .single();
 
   if (error) return res.status(400).json({ success: false, message: error.message });
-  return res.json(data);
+  return res.json(mapCitaFromDb(data));
 });
 
 router.patch('/citas/:id/notas', authorizeRoles('medico', 'admin'), async (req, res) => {
@@ -389,7 +578,7 @@ router.patch('/citas/:id/notas', authorizeRoles('medico', 'admin'), async (req, 
     .single();
 
   if (error) return res.status(400).json({ success: false, message: error.message });
-  return res.json(data);
+  return res.json(mapCitaFromDb(data));
 });
 
 router.put('/citas/:id', authorizeRoles('admin', 'recepcionista'), async (req: AuthRequest, res) => {
@@ -404,7 +593,7 @@ router.put('/citas/:id', authorizeRoles('admin', 'recepcionista'), async (req: A
       return res.status(404).json({ success: false, message: currentAppointmentError.message });
     }
 
-    if (currentAppointment.estado === 'completed') {
+    if (toAppAppointmentStatus(currentAppointment.estado) === 'completed') {
       return res.status(403).json({
         success: false,
         message: 'Recepción no puede editar citas ya atendidas',
@@ -424,15 +613,22 @@ router.put('/citas/:id', authorizeRoles('admin', 'recepcionista'), async (req: A
     }
   }
 
+  if (req.body.fecha !== undefined && !isAppointmentDateAllowed(req.body.fecha)) {
+    return res.status(400).json({
+      success: false,
+      message: 'La fecha de la cita debe estar dentro del año actual y no puede ser pasada',
+    });
+  }
+
   const { data, error } = await supabase
     .from('citas')
-    .update(req.body)
+    .update(normalizeCitaPayload(req.body))
     .eq('id', req.params.id)
     .select('*')
     .single();
 
   if (error) return res.status(400).json({ success: false, message: error.message });
-  return res.json(data);
+  return res.json(mapCitaFromDb(data));
 });
 
 router.delete('/citas/:id', authorizeRoles('admin'), async (req, res) => {

@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test": "node scripts/ci-smoke-test.js",
     "start": "node dist/server.js",
     "apply:schema": "node scripts/apply-supabase-schema.js",
     "verify:schema": "node scripts/verify-supabase-schema.js",

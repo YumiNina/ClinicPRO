@@ -1,7 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
+const path = require('node:path');
 const dotenv = require('dotenv');
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const requiredSchema = {
   usuarios:

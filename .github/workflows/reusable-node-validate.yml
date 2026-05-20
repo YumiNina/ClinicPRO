@@ -1,0 +1,65 @@
+name: Reusable Node Validation
+
+on:
+  workflow_call:
+    inputs:
+      project-name:
+        description: Human-readable project name.
+        required: true
+        type: string
+      working-directory:
+        description: Project directory that contains package.json.
+        required: true
+        type: string
+      artifact-path:
+        description: Build output path, relative to the working directory.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  node-validation:
+    name: ${{ inputs.project-name }} / Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
+
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run quality checks
+        run: npm run lint --if-present
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build project
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.project-name }}-node-${{ matrix.node-version }}-build
+          path: ${{ inputs.working-directory }}/${{ inputs.artifact-path }}
+          if-no-files-found: error
+          retention-days: 7

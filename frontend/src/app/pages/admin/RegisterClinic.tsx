@@ -3,6 +3,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { apiClient } from '../../../services/api-client';
+import {
+  isEmail,
+  isLetters,
+  isPhone,
+  keepDigits,
+  keepLetters,
+} from '../../../utils/form-validation';
 import { Button } from '../../components/ui/button';
 import {
   Card,
@@ -43,7 +50,13 @@ export default function RegisterClinic() {
   ];
 
   const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const nextValue = ['city'].includes(field)
+      ? keepLetters(value)
+      : field === 'phone'
+        ? keepDigits(value)
+        : value;
+
+    setFormData((prev) => ({ ...prev, [field]: nextValue }));
   };
 
   const handleSpecialtyToggle = (specialty: string) => {
@@ -60,6 +73,31 @@ export default function RegisterClinic() {
 
     if (formData.specialties.length === 0) {
       toast.error('Selecciona al menos una especialidad');
+      return;
+    }
+
+    if (formData.name.trim().length < 3) {
+      toast.error('Ingresa un nombre de clínica válido');
+      return;
+    }
+
+    if (!isLetters(formData.city)) {
+      toast.error('La ciudad solo debe contener letras');
+      return;
+    }
+
+    if (formData.address.trim().length < 5) {
+      toast.error('Ingresa una dirección válida');
+      return;
+    }
+
+    if (!isPhone(formData.phone)) {
+      toast.error('El teléfono debe contener solo números, entre 7 y 12 dígitos');
+      return;
+    }
+
+    if (!isEmail(formData.email)) {
+      toast.error('Ingresa un correo electrónico válido');
       return;
     }
 
@@ -148,9 +186,10 @@ export default function RegisterClinic() {
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="3-333333"
+                  placeholder="3333333"
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
+                  inputMode="numeric"
                   required
                 />
               </div>

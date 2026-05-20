@@ -1,7 +1,7 @@
 import { createBrowserRouter } from 'react-router';
 import AuthLayout from './layouts/AuthLayout';
 import DashboardLayout from './layouts/DashboardLayout';
-import { ProtectedRoute, RoleProtectedRoute } from './layouts/ProtectedRoute';
+import { RoleProtectedRoute } from './layouts/ProtectedRoute';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 import AllAppointments from './pages/admin/AllAppointments';
@@ -13,20 +13,11 @@ import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import PatientHistoryView from './pages/doctor/PatientHistoryView';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
-import BookAppointment from './pages/patient/BookAppointment';
-import MedicalHistory from './pages/patient/MedicalHistory';
-import MyAppointments from './pages/patient/MyAppointments';
-import PatientDashboard from './pages/patient/PatientDashboard';
 import RecoverPassword from './pages/RecoverPassword';
 import Register from './pages/Register';
 import Inbox from './pages/shared/Inbox';
 import Profile from './pages/shared/Profile';
 
-const PatientLayout = () => (
-  <ProtectedRoute>
-    <DashboardLayout role="patient" />
-  </ProtectedRoute>
-);
 const DoctorLayout = () => (
   <RoleProtectedRoute allowedRoles={['medico']}>
     <DashboardLayout role="doctor" />
@@ -51,18 +42,6 @@ export const router = createBrowserRouter([
       { index: true, Component: Login },
       { path: 'register', Component: Register },
       { path: 'recover-password', Component: RecoverPassword },
-    ],
-  },
-  {
-    path: '/patient',
-    Component: PatientLayout,
-    children: [
-      { index: true, Component: PatientDashboard },
-      { path: 'book-appointment', Component: BookAppointment },
-      { path: 'my-appointments', Component: MyAppointments },
-      { path: 'medical-history', Component: MedicalHistory },
-      { path: 'inbox', Component: Inbox },
-      { path: 'profile', element: <Profile role="patient" /> },
     ],
   },
   {

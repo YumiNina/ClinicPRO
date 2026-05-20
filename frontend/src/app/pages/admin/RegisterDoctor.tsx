@@ -3,6 +3,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { apiClient } from '../../../services/api-client';
+import {
+  isDigits,
+  isEmail,
+  isLetters,
+  isPhone,
+  keepDigits,
+  keepLetters,
+} from '../../../utils/form-validation';
 import { Button } from '../../components/ui/button';
 import {
   Card,
@@ -55,11 +63,47 @@ export default function RegisterDoctor() {
   ];
 
   const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const nextValue = ['fullName'].includes(field)
+      ? keepLetters(value)
+      : ['ci', 'phone'].includes(field)
+        ? keepDigits(value)
+        : value;
+
+    setFormData((prev) => ({ ...prev, [field]: nextValue }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isLetters(formData.fullName)) {
+      toast.error('El nombre del médico solo debe contener letras');
+      return;
+    }
+
+    if (!isDigits(formData.ci, 5, 12)) {
+      toast.error('El CI debe contener solo números, mínimo 5 dígitos');
+      return;
+    }
+
+    if (!isEmail(formData.email)) {
+      toast.error('Ingresa un correo electrónico válido');
+      return;
+    }
+
+    if (!isPhone(formData.phone)) {
+      toast.error('El teléfono debe contener solo números, entre 7 y 12 dígitos');
+      return;
+    }
+
+    if (!formData.specialty || !formData.clinic) {
+      toast.error('Selecciona especialidad y clínica asignada');
+      return;
+    }
+
+    if (!/^[A-Za-z0-9-]{4,30}$/.test(formData.licenseNumber.trim())) {
+      toast.error('La licencia médica solo debe usar letras, números y guiones');
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       toast.error('Las contraseñas no coinciden');
@@ -129,6 +173,7 @@ export default function RegisterDoctor() {
                   placeholder="12345678"
                   value={formData.ci}
                   onChange={(e) => handleChange('ci', e.target.value)}
+                  inputMode="numeric"
                   required
                 />
               </div>
@@ -153,6 +198,7 @@ export default function RegisterDoctor() {
                   placeholder="70123456"
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
+                  inputMode="numeric"
                   required
                 />
               </div>

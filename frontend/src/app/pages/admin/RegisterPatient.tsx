@@ -4,6 +4,16 @@ import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useAuth } from '../../../hooks/useAuth';
 import { apiClient } from '../../../services/api-client';
+import {
+  isDateNotFuture,
+  isDigits,
+  isEmail,
+  isLetters,
+  isPhone,
+  keepDigits,
+  keepLetters,
+  todayInputValue,
+} from '../../../utils/form-validation';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Button } from '../../components/ui/button';
 import {
@@ -43,16 +53,22 @@ export default function RegisterPatient() {
     parentName: '',
     parentCI: '',
     parentPhone: '',
-    password: '',
-    confirmPassword: '',
   });
 
   const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    const lettersOnlyFields = ['fullName', 'emergencyContact', 'parentName'];
+    const digitsOnlyFields = ['ci', 'phone', 'emergencyPhone', 'parentCI', 'parentPhone'];
+    const nextValue = lettersOnlyFields.includes(field)
+      ? keepLetters(value)
+      : digitsOnlyFields.includes(field)
+        ? keepDigits(value)
+        : value;
+
+    setFormData((prev) => ({ ...prev, [field]: nextValue }));
 
     // Check if is minor based on birth date
-    if (field === 'birthDate' && value) {
-      const birthDate = new Date(value);
+    if (field === 'birthDate' && nextValue) {
+      const birthDate = new Date(nextValue);
       const today = new Date();
       const age = today.getFullYear() - birthDate.getFullYear();
       setIsMinor(age < 18);
@@ -62,18 +78,53 @@ export default function RegisterPatient() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Las contraseñas no coinciden');
+    if (!isLetters(formData.fullName)) {
+      toast.error('Ingresa el nombre del paciente usando solo letras');
       return;
     }
 
-    if (formData.password.length < 6) {
-      toast.error('La contraseña debe tener al menos 6 caracteres');
+    if (!isDigits(formData.ci, 5, 12)) {
+      toast.error('El CI debe contener solo números, entre 5 y 12 dígitos');
       return;
     }
 
-    if (isMinor && (!formData.parentName || !formData.parentCI)) {
-      toast.error('Debes completar la información del tutor para pacientes menores de edad');
+    if (!isDateNotFuture(formData.birthDate)) {
+      toast.error('La fecha de nacimiento no puede ser futura');
+      return;
+    }
+
+    if (!formData.gender) {
+      toast.error('Selecciona el género del paciente');
+      return;
+    }
+
+    if (!isPhone(formData.phone)) {
+      toast.error('El teléfono debe contener solo números, entre 7 y 12 dígitos');
+      return;
+    }
+
+    if (!isEmail(formData.email)) {
+      toast.error('Ingresa un correo electrónico válido');
+      return;
+    }
+
+    if (formData.emergencyContact && !isLetters(formData.emergencyContact)) {
+      toast.error('El contacto de emergencia debe contener solo letras');
+      return;
+    }
+
+    if (formData.emergencyPhone && !isPhone(formData.emergencyPhone)) {
+      toast.error('El teléfono de emergencia debe contener solo números');
+      return;
+    }
+
+    if (
+      isMinor &&
+      (!isLetters(formData.parentName) ||
+        !isDigits(formData.parentCI, 5, 12) ||
+        !isPhone(formData.parentPhone))
+    ) {
+      toast.error('Completa los datos del tutor con nombre, CI y teléfono válidos');
       return;
     }
 
@@ -141,6 +192,7 @@ export default function RegisterPatient() {
                   placeholder="12345678"
                   value={formData.ci}
                   onChange={(e) => handleChange('ci', e.target.value)}
+                  inputMode="numeric"
                   required
                 />
               </div>
@@ -152,6 +204,7 @@ export default function RegisterPatient() {
                   type="date"
                   value={formData.birthDate}
                   onChange={(e) => handleChange('birthDate', e.target.value)}
+                  max={todayInputValue()}
                   required
                 />
                 {isMinor && (
@@ -208,6 +261,7 @@ export default function RegisterPatient() {
                   placeholder="70123456"
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
+                  inputMode="numeric"
                   required
                 />
               </div>
@@ -252,6 +306,7 @@ export default function RegisterPatient() {
                   placeholder="70123456"
                   value={formData.emergencyPhone}
                   onChange={(e) => handleChange('emergencyPhone', e.target.value)}
+                  inputMode="numeric"
                 />
               </div>
             </div>
@@ -281,6 +336,7 @@ export default function RegisterPatient() {
                         placeholder="98765432"
                         value={formData.parentCI}
                         onChange={(e) => handleChange('parentCI', e.target.value)}
+                        inputMode="numeric"
                         required={isMinor}
                       />
                     </div>
@@ -293,6 +349,7 @@ export default function RegisterPatient() {
                         placeholder="70987654"
                         value={formData.parentPhone}
                         onChange={(e) => handleChange('parentPhone', e.target.value)}
+                        inputMode="numeric"
                         required={isMinor}
                       />
                     </div>
@@ -300,35 +357,6 @@ export default function RegisterPatient() {
                 </div>
               </>
             )}
-
-            <div className="pt-6 border-t">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Credenciales de Acceso</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="password">Contraseña *</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) => handleChange('password', e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar Contraseña *</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleChange('confirmPassword', e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-            </div>
 
             <div className="flex gap-3 pt-4">
               <Button

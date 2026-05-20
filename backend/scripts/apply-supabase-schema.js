@@ -3,7 +3,7 @@ const path = require('node:path');
 const { Client } = require('pg');
 const dotenv = require('dotenv');
 
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const databaseUrl = process.env.DATABASE_URL;
 

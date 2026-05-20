@@ -60,6 +60,26 @@ INSERT INTO clinicas (
     'norte.demo@clinicpro.test',
     'Lunes a sabado 08:00 - 14:00',
     'Centro de apoyo para consultas programadas'
+  ),
+  (
+    '03030303-0303-4303-8303-030303030303',
+    'ClinicPRO Sur',
+    'Av. Grigota 2450',
+    'Santa Cruz',
+    '33445566',
+    'sur.demo@clinicpro.test',
+    'Lunes a viernes 08:00 - 17:00',
+    'Sucursal para medicina general y seguimiento familiar'
+  ),
+  (
+    '04040404-0404-4404-8404-040404040404',
+    'ClinicPRO Valle',
+    'Av. America 1020',
+    'Cochabamba',
+    '44556677',
+    'valle.demo@clinicpro.test',
+    'Lunes a viernes 09:00 - 18:00',
+    'Sede regional para consultas programadas y controles'
   )
 ON CONFLICT (id) DO UPDATE SET
   nombre = EXCLUDED.nombre,

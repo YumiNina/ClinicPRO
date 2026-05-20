@@ -19,6 +19,7 @@
 		"check:all": "npm run biome:check && npm run styles:lint && npm run html:check",
 		"fix:all": "npm run biome:write && npm run styles:fix && npm run html:format",
 		"lint": "npm run biome:check && npm run styles:lint && npm run html:check",
+		"test": "node scripts/ci-smoke-test.mjs",
 		"format": "npm run biome:write && npm run styles:fix && npm run html:format",
 		"lint-staged": "lint-staged"
 	},
