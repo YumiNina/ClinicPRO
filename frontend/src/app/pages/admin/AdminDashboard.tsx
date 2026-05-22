@@ -1,5 +1,13 @@
-import { Activity, AlertTriangle, Building2, Calendar, Stethoscope, Users } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import {
+  Activity,
+  Building2,
+  Calendar,
+  ClipboardList,
+  Stethoscope,
+  UserCog,
+  Users,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { apiClient } from '../../../services/api-client';
 import { Badge } from '../../components/ui/badge';
@@ -12,21 +20,50 @@ import {
   CardTitle,
 } from '../../components/ui/card';
 
+type ReportKey = 'pacientes' | 'medicos' | 'clinicas' | 'citasHoy' | 'usuarios';
+
+type DashboardActivity = {
+  id: string;
+  type: 'patient' | 'doctor' | 'clinic' | 'user' | 'appointment' | 'history';
+  title: string;
+  message: string;
+  created_at?: string;
+};
+
+type DashboardRow = Record<string, string | number | boolean | null | undefined>;
+
+type AdminDashboardData = {
+  stats: Record<ReportKey, number>;
+  reports: Record<ReportKey | 'citas', DashboardRow[]>;
+  recentActivity: DashboardActivity[];
+};
+
+const reportLabels: Record<ReportKey, string> = {
+  pacientes: 'Pacientes',
+  medicos: 'Médicos activos',
+  clinicas: 'Clínicas',
+  citasHoy: 'Citas de hoy',
+  usuarios: 'Usuarios',
+};
+
+const formatDate = (value?: string | number | boolean | null) => {
+  if (!value) return 'Sin fecha';
+  return new Date(String(value)).toLocaleString('es-ES');
+};
+
+const activityIcon = {
+  patient: Users,
+  doctor: Stethoscope,
+  clinic: Building2,
+  user: UserCog,
+  appointment: Calendar,
+  history: ClipboardList,
+};
+
 export default function AdminDashboard() {
-  const [dashboard, setDashboard] = useState<{
-    stats: {
-      pacientes: number;
-      medicos: number;
-      clinicas: number;
-      citasHoy: number;
-    };
-    recentActivity: Array<{
-      id: string;
-      accion?: string;
-      entidad?: string;
-      created_at?: string;
-    }>;
-  } | null>(null);
+  const [dashboard, setDashboard] = useState<AdminDashboardData | null>(null);
+  const [activeReport, setActiveReport] = useState<ReportKey>('pacientes');
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
 
   useEffect(() => {
     apiClient
@@ -37,84 +74,107 @@ export default function AdminDashboard() {
 
   const stats = [
     {
+      key: 'pacientes' as const,
       label: 'Total Pacientes',
-      value: String(dashboard?.stats.pacientes ?? 0),
+      value: dashboard?.stats.pacientes ?? 0,
       icon: Users,
       color: 'text-cyan-600',
-      change: '+12%',
     },
     {
+      key: 'medicos' as const,
       label: 'Médicos Activos',
-      value: String(dashboard?.stats.medicos ?? 0),
+      value: dashboard?.stats.medicos ?? 0,
       icon: Stethoscope,
-      color: 'text-green-600',
-      change: '+3',
+      color: 'text-emerald-600',
     },
     {
+      key: 'clinicas' as const,
       label: 'Clínicas',
-      value: String(dashboard?.stats.clinicas ?? 0),
+      value: dashboard?.stats.clinicas ?? 0,
       icon: Building2,
       color: 'text-teal-600',
-      change: '',
     },
     {
+      key: 'citasHoy' as const,
       label: 'Citas Hoy',
-      value: String(dashboard?.stats.citasHoy ?? 0),
+      value: dashboard?.stats.citasHoy ?? 0,
       icon: Calendar,
-      color: 'text-orange-600',
-      change: '',
+      color: 'text-amber-600',
+    },
+    {
+      key: 'usuarios' as const,
+      label: 'Usuarios',
+      value: dashboard?.stats.usuarios ?? 0,
+      icon: UserCog,
+      color: 'text-indigo-600',
     },
   ];
 
-  const recentActivity =
-    dashboard?.recentActivity.map((activity) => ({
-      type: activity.entidad || 'activity',
-      message: activity.accion || 'Actividad registrada',
-      time: activity.created_at
-        ? new Date(activity.created_at).toLocaleString('es-ES')
-        : 'Fecha no disponible',
-      status: 'info',
-    })) || [];
+  const selectedRows = useMemo(() => {
+    const rows = dashboard?.reports[activeReport] || [];
 
-  const penalties = [
-    {
-      patient: 'Carlos Rodríguez',
-      ci: '12345678',
-      reason: '1 cancelación',
-      blockUntil: '12 Abr 2026',
-      type: '1mes',
-    },
-    {
-      patient: 'Ana López',
-      ci: '23456789',
-      reason: '3 ausencias consecutivas',
-      blockUntil: '10 Feb 2027',
-      type: '1año',
-    },
-    {
-      patient: 'Luis Torres',
-      ci: '34567890',
-      reason: '1 cancelación',
-      blockUntil: '20 Mar 2026',
-      type: '1mes',
-    },
-  ];
+    if (activeReport !== 'usuarios' || userRoleFilter === 'all') return rows;
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'user':
-        return <Users className="w-5 h-5 text-cyan-600" />;
-      case 'doctor':
-        return <Stethoscope className="w-5 h-5 text-green-600" />;
-      case 'clinic':
-        return <Building2 className="w-5 h-5 text-teal-600" />;
-      case 'warning':
-        return <AlertTriangle className="w-5 h-5 text-orange-600" />;
-      case 'block':
-        return <AlertTriangle className="w-5 h-5 text-red-600" />;
-      default:
-        return <Activity className="w-5 h-5 text-gray-600" />;
+    return rows.filter((row) => row.rol === userRoleFilter);
+  }, [activeReport, dashboard, userRoleFilter]);
+
+  const renderRow = (row: DashboardRow) => {
+    if (activeReport === 'pacientes') {
+      return (
+        <>
+          <p className="font-medium text-slate-900">{row.nombre_completo || row.nombre_apellido}</p>
+          <p className="text-sm text-slate-600">CI: {row.ci || row.dni_nie || 'Sin CI'}</p>
+          <p className="text-xs text-slate-500">{row.email || row.telefono || 'Sin contacto'}</p>
+        </>
+      );
     }
+
+    if (activeReport === 'medicos') {
+      return (
+        <>
+          <p className="font-medium text-slate-900">{row.nombre_completo}</p>
+          <p className="text-sm text-slate-600">{row.especialidad || 'Sin especialidad'}</p>
+          <p className="text-xs text-slate-500">Licencia: {row.licencia_medica || 'No registrada'}</p>
+        </>
+      );
+    }
+
+    if (activeReport === 'clinicas') {
+      return (
+        <>
+          <p className="font-medium text-slate-900">{row.nombre}</p>
+          <p className="text-sm text-slate-600">{row.ciudad || 'Ciudad no registrada'}</p>
+          <p className="text-xs text-slate-500">{row.email || row.telefono || 'Sin contacto'}</p>
+        </>
+      );
+    }
+
+    if (activeReport === 'usuarios') {
+      return (
+        <>
+          <p className="font-medium text-slate-900">{row.nombre_completo}</p>
+          <p className="text-sm text-slate-600">{row.email}</p>
+          <div className="mt-1 flex items-center gap-2">
+            <Badge variant="secondary">{row.rol}</Badge>
+            <Badge className={row.activo ? 'bg-emerald-600' : ''} variant={row.activo ? 'default' : 'secondary'}>
+              {row.activo ? 'Activo' : 'Inactivo'}
+            </Badge>
+          </div>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <p className="font-medium text-slate-900">{row.especialidad}</p>
+        <p className="text-sm text-slate-600">
+          Paciente {row.paciente_id} · Médico {row.medico_id}
+        </p>
+        <p className="text-xs text-slate-500">
+          {row.fecha} · {row.hora} hrs
+        </p>
+      </>
+    );
   };
 
   return (
@@ -124,27 +184,32 @@ export default function AdminDashboard() {
         <p className="text-gray-600">Vista general de Clinic Pro</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         {stats.map((stat) => {
           const Icon = stat.icon;
+          const isActive = activeReport === stat.key;
+
           return (
-            <Card key={stat.label}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <Icon className={`w-8 h-8 ${stat.color}`} />
-                  <Badge variant="secondary">{stat.change}</Badge>
-                </div>
-                <p className="text-sm text-gray-600">{stat.label}</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</p>
-              </CardContent>
-            </Card>
+            <button
+              type="button"
+              key={stat.key}
+              onClick={() => setActiveReport(stat.key)}
+              className={`rounded-lg border bg-white p-5 text-left shadow-sm transition hover:border-cyan-300 hover:shadow-md ${
+                isActive ? 'border-cyan-500 ring-2 ring-cyan-100' : 'border-slate-200'
+              }`}
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <Icon className={`h-8 w-8 ${stat.color}`} />
+                <span className="text-xs font-medium text-slate-500">Ver reporte</span>
+              </div>
+              <p className="text-sm text-gray-600">{stat.label}</p>
+              <p className="mt-1 text-3xl font-bold text-gray-900">{stat.value}</p>
+            </button>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Acciones Rápidas</CardTitle>
@@ -153,100 +218,119 @@ export default function AdminDashboard() {
           <CardContent className="space-y-3">
             <Link to="/admin/register-patient">
               <Button className="w-full justify-start" variant="outline">
-                <Users className="w-4 h-4 mr-2" />
+                <Users className="mr-2 h-4 w-4" />
                 Registrar Paciente
               </Button>
             </Link>
             <Link to="/admin/register-doctor">
               <Button className="w-full justify-start" variant="outline">
-                <Stethoscope className="w-4 h-4 mr-2" />
+                <Stethoscope className="mr-2 h-4 w-4" />
                 Registrar Médico
               </Button>
             </Link>
             <Link to="/admin/register-clinic">
               <Button className="w-full justify-start" variant="outline">
-                <Building2 className="w-4 h-4 mr-2" />
+                <Building2 className="mr-2 h-4 w-4" />
                 Registrar Clínica
               </Button>
             </Link>
             <Link to="/admin/appointments">
               <Button className="w-full justify-start" variant="outline">
-                <Calendar className="w-4 h-4 mr-2" />
+                <Calendar className="mr-2 h-4 w-4" />
                 Ver Todas las Citas
+              </Button>
+            </Link>
+            <Link to="/admin/book-appointment">
+              <Button className="w-full justify-start" variant="outline">
+                <Calendar className="mr-2 h-4 w-4" />
+                Agendar Cita
               </Button>
             </Link>
             <Link to="/admin/users">
               <Button className="w-full justify-start" variant="outline">
-                <Users className="w-4 h-4 mr-2" />
+                <UserCog className="mr-2 h-4 w-4" />
                 Gestionar Usuarios
               </Button>
             </Link>
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Actividad Reciente</CardTitle>
-              <CardDescription>Últimas acciones en el sistema</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentActivity.length === 0 && (
-                  <p className="text-sm text-gray-500">Aún no hay actividad registrada.</p>
-                )}
-                {recentActivity.map((activity, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 pb-4 border-b last:border-0 last:pb-0"
-                  >
-                    {getActivityIcon(activity.type)}
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900">{activity.message}</p>
-                      <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                    </div>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Reporte de {reportLabels[activeReport]}</CardTitle>
+            <CardDescription>
+              Mostrando {selectedRows.length} registros recientes de {reportLabels[activeReport].toLowerCase()}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {activeReport === 'usuarios' && (
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-medium text-slate-700">Filtrar usuarios:</span>
+                <select
+                  value={userRoleFilter}
+                  onChange={(event) => setUserRoleFilter(event.target.value)}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="all">Todos</option>
+                  <option value="admin">Administradores</option>
+                  <option value="medico">Médicos</option>
+                  <option value="recepcionista">Recepcionistas</option>
+                </select>
+              </div>
+            )}
+
+            {selectedRows.length === 0 ? (
+              <p className="text-sm text-slate-500">No hay registros para mostrar.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {selectedRows.map((row, index) => (
+                  <div key={String(row.id || index)} className="rounded-lg border border-slate-200 p-4">
+                    {renderRow(row)}
+                    <p className="mt-2 text-xs text-slate-400">
+                      Registrado: {formatDate(row.created_at)}
+                    </p>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Penalties/Blocks */}
       <Card>
         <CardHeader>
-          <CardTitle>Gestión de Penalizaciones</CardTitle>
-          <CardDescription>Pacientes con bloqueos activos</CardDescription>
+          <CardTitle>Resumen de Actividad Reciente</CardTitle>
+          <CardDescription>
+            {dashboard?.recentActivity.length || 0} movimientos recientes entre usuarios, pacientes,
+            médicos, clínicas y citas.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {penalties.map((penalty, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-medium text-gray-900">{penalty.patient}</h4>
-                    <Badge variant={penalty.type === '1año' ? 'destructive' : 'secondary'}>
-                      Bloqueado {penalty.type}
-                    </Badge>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {(dashboard?.recentActivity || []).map((activity) => {
+              const Icon = activityIcon[activity.type] || Activity;
+
+              return (
+                <div
+                  key={activity.id}
+                  className="rounded-lg border border-cyan-100 bg-cyan-50/60 p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <Icon className="mt-0.5 h-5 w-5 text-cyan-700" />
+                    <div>
+                      <p className="font-medium text-slate-900">{activity.title}</p>
+                      <p className="text-sm text-slate-700">{activity.message}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatDate(activity.created_at)}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600">CI: {penalty.ci}</p>
-                  <p className="text-sm text-gray-600">Motivo: {penalty.reason}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Bloqueado hasta: {penalty.blockUntil}
-                  </p>
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline">
-                    Ver Detalles
-                  </Button>
-                  <Button size="sm" variant="default">
-                    Desbloquear
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
+            {(!dashboard?.recentActivity || dashboard.recentActivity.length === 0) && (
+              <p className="text-sm text-slate-500">Aún no hay actividad registrada.</p>
+            )}
           </div>
         </CardContent>
       </Card>

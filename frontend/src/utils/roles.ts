@@ -7,7 +7,8 @@ export const getDefaultPathForRole = (role?: UserRole | string | null) => {
   return '/';
 };
 
-export const normalizeRouteRole = (role: 'admin' | 'doctor' | 'patient'): UserRole | 'patient' => {
+export const normalizeRouteRole = (role: 'admin' | 'doctor' | 'reception'): UserRole => {
   if (role === 'doctor') return 'medico';
+  if (role === 'reception') return 'recepcionista';
   return role;
 };

@@ -7,8 +7,10 @@ import {
   isEmail,
   isLetters,
   isPhone,
+  isTimeRangeSchedule,
   keepDigits,
   keepLetters,
+  keepTimeRangeCharacters,
   todayInputValue,
 } from './form-validation';
 
@@ -49,6 +51,19 @@ describe('form validation helpers', () => {
   it('rejects malformed phone and email values', () => {
     expect(isPhone('70A23456')).toBe(false);
     expect(isEmail('recepcion clinicpro.test')).toBe(false);
+  });
+
+  it('keeps only time range characters for schedules', () => {
+    expect(keepTimeRangeCharacters('Lunes 09:00-12:00 abc, 14:00-18:00')).toBe(
+      ' 09:00-12:00 , 14:00-18:00'
+    );
+  });
+
+  it('validates medical schedules without letters', () => {
+    expect(isTimeRangeSchedule('09:00-12:00')).toBe(true);
+    expect(isTimeRangeSchedule('09:00-12:00, 14:00-18:00')).toBe(true);
+    expect(isTimeRangeSchedule('Lunes 09:00-12:00')).toBe(false);
+    expect(isTimeRangeSchedule('18:00-09:00')).toBe(false);
   });
 
   it('does not allow future dates for birth date validation', () => {

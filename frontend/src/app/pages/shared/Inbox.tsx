@@ -25,14 +25,6 @@ interface Message {
   date: string;
 }
 
-type HistorialApi = {
-  id: string;
-  diagnostico?: string;
-  descripcion?: string;
-  created_at?: string;
-  fecha?: string;
-};
-
 type CitaApi = {
   id: string;
   paciente_id: string;
@@ -72,42 +64,12 @@ const formatDateLabel = (date: string) => {
   });
 };
 
-const buildAppointmentMessage = (appointment: Cita, role: 'patient' | 'doctor'): Message => {
+const buildAppointmentMessage = (appointment: Cita): Message => {
   const dateIso = `${appointment.date}T${appointment.time}:00`;
-
-  if (role === 'doctor') {
-    if (appointment.status === 'cancelled') {
-      return {
-        id: `doctor-cita-${appointment.id}`,
-        type: 'cancellation',
-        title: 'Cita cancelada',
-        message: `La cita de ${appointment.specialty} del ${formatDateLabel(appointment.date)} a las ${appointment.time} fue cancelada.`,
-        date: dateIso,
-      };
-    }
-
-    if (appointment.status === 'completed') {
-      return {
-        id: `doctor-cita-${appointment.id}`,
-        type: 'info',
-        title: 'Cita atendida',
-        message: `La cita de ${appointment.specialty} del ${formatDateLabel(appointment.date)} quedó marcada como completada.`,
-        date: dateIso,
-      };
-    }
-
-    return {
-      id: `doctor-cita-${appointment.id}`,
-      type: appointment.status === 'confirmed' ? 'confirmation' : 'reminder',
-      title: appointment.status === 'confirmed' ? 'Nueva cita confirmada' : 'Nueva cita asignada',
-      message: `Tienes una cita de ${appointment.specialty} el ${formatDateLabel(appointment.date)} a las ${appointment.time}.`,
-      date: dateIso,
-    };
-  }
 
   if (appointment.status === 'cancelled') {
     return {
-      id: `cita-${appointment.id}`,
+      id: `doctor-cita-${appointment.id}`,
       type: 'cancellation',
       title: 'Cita cancelada',
       message: `La cita de ${appointment.specialty} del ${formatDateLabel(appointment.date)} a las ${appointment.time} fue cancelada.`,
@@ -115,30 +77,20 @@ const buildAppointmentMessage = (appointment: Cita, role: 'patient' | 'doctor'):
     };
   }
 
-  if (appointment.status === 'confirmed') {
+  if (appointment.status === 'completed') {
     return {
-      id: `cita-${appointment.id}`,
-      type: 'confirmation',
-      title: 'Cita confirmada',
-      message: `Tienes una cita confirmada de ${appointment.specialty} el ${formatDateLabel(appointment.date)} a las ${appointment.time}.`,
-      date: dateIso,
-    };
-  }
-
-  if (appointment.status === 'absent') {
-    return {
-      id: `cita-${appointment.id}`,
-      type: 'warning',
-      title: 'Registro de ausencia',
-      message: `La cita de ${appointment.specialty} del ${formatDateLabel(appointment.date)} fue marcada como ausente.`,
+      id: `doctor-cita-${appointment.id}`,
+      type: 'info',
+      title: 'Cita atendida',
+      message: `La cita de ${appointment.specialty} del ${formatDateLabel(appointment.date)} quedó marcada como completada.`,
       date: dateIso,
     };
   }
 
   return {
-    id: `cita-${appointment.id}`,
-    type: 'reminder',
-    title: 'Recordatorio de cita',
+    id: `doctor-cita-${appointment.id}`,
+    type: appointment.status === 'confirmed' ? 'confirmation' : 'reminder',
+    title: appointment.status === 'confirmed' ? 'Nueva cita confirmada' : 'Nueva cita asignada',
     message: `Tienes una cita de ${appointment.specialty} el ${formatDateLabel(appointment.date)} a las ${appointment.time}.`,
     date: dateIso,
   };
@@ -147,35 +99,27 @@ const buildAppointmentMessage = (appointment: Cita, role: 'patient' | 'doctor'):
 export default function Inbox() {
   const location = useLocation();
   const { user } = useAuth();
-  const { useCitasPaciente, useCitasDoctor, useHistorialPaciente } = useCitas();
+  const { useCitasDoctor } = useCitas();
 
   const currentUser = user || JSON.parse(localStorage.getItem('clinicpro_user') || '{}');
   const rawRole = String(currentUser.rol || '').toLowerCase();
 
-  const normalizeRole = (value: string): 'patient' | 'doctor' | 'reception' | '' => {
-    if (value === 'patient' || value === 'paciente') return 'patient';
+  const normalizeRole = (value: string): 'doctor' | 'reception' | '' => {
     if (value === 'doctor' || value === 'medico' || value === 'médico') return 'doctor';
     if (value === 'recepcionista' || value === 'reception') return 'reception';
     return '';
   };
 
-  const roleFromPath: 'patient' | 'doctor' | 'reception' | '' = location.pathname.startsWith(
-    '/patient',
-  )
-    ? 'patient'
-    : location.pathname.startsWith('/doctor')
+  const roleFromPath: 'doctor' | 'reception' | '' = location.pathname.startsWith('/doctor')
       ? 'doctor'
       : location.pathname.startsWith('/reception')
         ? 'reception'
         : '';
 
-  const role = roleFromPath || normalizeRole(rawRole) || 'patient';
-  const patientId = role === 'patient' ? String(currentUser.id || '') : '';
+  const role = roleFromPath || normalizeRole(rawRole) || 'reception';
   const doctorId = role === 'doctor' ? String(currentUser.id || '') : '';
 
-  const { data: patientAppointments } = useCitasPaciente(patientId);
   const { data: doctorAppointments } = useCitasDoctor(doctorId);
-  const { data: historial } = useHistorialPaciente(patientId);
 
   const [readMessageIds, setReadMessageIds] = useState<string[]>([]);
   const [receptionMessages, setReceptionMessages] = useState<Message[]>([]);
@@ -236,31 +180,19 @@ export default function Inbox() {
       .finally(() => setIsLoadingReceptionMessages(false));
   }, [role]);
 
-  const appointmentsForInbox: Cita[] =
-    role === 'doctor' ? doctorAppointments || [] : patientAppointments || [];
+  const appointmentsForInbox: Cita[] = role === 'doctor' ? doctorAppointments || [] : [];
 
   const appointmentMessages: Message[] =
-    role === 'doctor' || role === 'patient'
-      ? appointmentsForInbox.map((appointment) => buildAppointmentMessage(appointment, role))
-      : [];
-
-  const historialMessages: Message[] =
-    role === 'patient'
-      ? ((historial || []) as HistorialApi[]).map((entry) => ({
-          id: `hist-${entry.id}`,
-          type: 'info',
-          title: 'Actualización de historial',
-          message: `Se registró un nuevo diagnóstico: ${entry.diagnostico || 'Sin diagnóstico'}.`,
-          date: entry.created_at || entry.fecha || new Date().toISOString(),
-        }))
+    role === 'doctor'
+      ? appointmentsForInbox.map((appointment) => buildAppointmentMessage(appointment))
       : [];
 
   const messages = useMemo(
     () =>
-      [...appointmentMessages, ...historialMessages, ...receptionMessages].sort(
+      [...appointmentMessages, ...receptionMessages].sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       ),
-    [appointmentMessages, historialMessages, receptionMessages],
+    [appointmentMessages, receptionMessages],
   );
 
   const isRead = (id: string) => readMessageIds.includes(id);

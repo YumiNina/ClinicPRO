@@ -71,24 +71,25 @@ export const authService = {
 };
 
 export const appointmentService = {
-  getAppointments: async () => apiCall('/appointments'),
+  getAppointments: async () => apiCall('/citas'),
 
   bookAppointment: async (data: object) =>
-    apiCall('/appointments', {
+    apiCall('/citas', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   cancelAppointment: async (id: string) =>
-    apiCall(`/appointments/${id}`, {
-      method: 'DELETE',
+    apiCall(`/citas/${id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify({ estado: 'cancelled' }),
     }),
 };
 
 export const doctorService = {
-  getAgenda: async () => apiCall('/doctor/agenda'),
+  getAgenda: async () => apiCall('/doctor/dashboard'),
 
-  getPatientHistory: async (patientId: string) => apiCall(`/doctor/patients/${patientId}/history`),
+  getPatientHistory: async (patientId: string) => apiCall(`/historial/paciente/${patientId}`),
 };
 
 export const adminService = {

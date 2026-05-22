@@ -36,7 +36,8 @@ import {
 export default function RegisterPatient() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const homePath = user?.rol === 'recepcionista' ? '/reception' : '/admin';
+  const homePath =
+    user?.rol === 'recepcionista' ? '/reception' : user?.rol === 'medico' ? '/doctor' : '/admin';
   const [isMinor, setIsMinor] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -154,7 +155,9 @@ export default function RegisterPatient() {
         </Button>
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Registrar Nuevo Paciente</h2>
-          <p className="text-gray-600">Registro desde la clínica (incluye infantes)</p>
+          <p className="text-gray-600">
+            Registro desde la clínica para administración, recepción o atención médica
+          </p>
         </div>
       </div>
 

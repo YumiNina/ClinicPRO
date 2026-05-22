@@ -1,6 +1,8 @@
 import { Calendar as CalendarIcon, Clock, Edit, MapPin, User, X } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useAuth } from '../../../hooks/useAuth';
+import { useCitas } from '../../../hooks/useCitas';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,104 +38,78 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 
-interface Appointment {
-  id: number;
-  patient: string;
-  ci: string;
-  date: string;
-  time: string;
-  specialty: string;
-  clinic: string;
-  status: 'confirmed' | 'completed' | 'cancelled' | 'absent';
-}
-
 export default function DoctorAgenda() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>([
-    {
-      id: 1,
-      patient: 'Juan Pérez García',
-      ci: '12345678',
-      date: '2026-03-12',
-      time: '09:00',
-      specialty: 'Cardiología',
-      clinic: 'Hospital Central',
-      status: 'completed',
-    },
-    {
-      id: 2,
-      patient: 'María López Sánchez',
-      ci: '23456789',
-      date: '2026-03-12',
-      time: '10:00',
-      specialty: 'Cardiología',
-      clinic: 'Hospital Central',
-      status: 'confirmed',
-    },
-    {
-      id: 3,
-      patient: 'Carlos Rodríguez',
-      ci: '34567890',
-      date: '2026-03-12',
-      time: '11:00',
-      specialty: 'Cardiología',
-      clinic: 'Hospital Central',
-      status: 'confirmed',
-    },
-    {
-      id: 4,
-      patient: 'Ana Martínez',
-      ci: '45678901',
-      date: '2026-03-12',
-      time: '14:00',
-      specialty: 'Cardiología',
-      clinic: 'Hospital Central',
-      status: 'confirmed',
-    },
-    {
-      id: 5,
-      patient: 'Luis Torres',
-      ci: '56789012',
-      date: '2026-03-15',
-      time: '09:30',
-      specialty: 'Cardiología',
-      clinic: 'Hospital Central',
-      status: 'confirmed',
-    },
-    {
-      id: 6,
-      patient: 'Patricia Gómez',
-      ci: '67890123',
-      date: '2026-03-15',
-      time: '11:00',
-      specialty: 'Cardiología',
-      clinic: 'Hospital Central',
-      status: 'confirmed',
-    },
-  ]);
+  const { user } = useAuth();
+  const doctorId = String(user?.id || '');
+  const selectedDateString = useMemo(() => {
+    if (!selectedDate) return '';
+    const y = selectedDate.getFullYear();
+    const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const d = String(selectedDate.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, [selectedDate]);
 
-  const handleCancelAppointment = (id: number, _reason: string) => {
-    setAppointments(appointments.map((a) => (a.id === id ? { ...a, status: 'cancelled' } : a)));
+  const {
+    useCitasDoctor,
+    cambiarEstadoMutation,
+    editarNotasMutation,
+    actualizarCitaMutation,
+  } = useCitas();
 
-    toast.success('Cita cancelada correctamente', {
-      description: 'El paciente ha sido notificado sin penalización',
-    });
+  const { data: citasDoctor = [] } = useCitasDoctor(doctorId, selectedDateString);
+
+  const [editForm, setEditForm] = useState({
+    patient: '',
+    date: '',
+    time: '',
+    clinic: '',
+    specialty: '',
+    notes: '',
+  });
+
+  const handleCancelAppointment = async (id: string) => {
+    try {
+      await cambiarEstadoMutation.mutateAsync({ id, estado: 'cancelled' });
+      toast.success('Cita cancelada correctamente', { description: 'El paciente ha sido notificado y el horario quedó disponible' });
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo cancelar la cita');
+    }
   };
 
-  const handleMarkAbsent = (id: number) => {
-    setAppointments(appointments.map((a) => (a.id === id ? { ...a, status: 'absent' } : a)));
-
-    toast.warning('Paciente marcado como ausente', {
-      description: 'Se ha registrado la inasistencia. Se aplicará la penalización.',
-    });
+  const handleMarkAbsent = async (id: string) => {
+    try {
+      await cambiarEstadoMutation.mutateAsync({ id, estado: 'absent' });
+      toast.warning('Paciente marcado como ausente', { description: 'Se ha registrado la inasistencia en la agenda médica.' });
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo marcar ausencia');
+    }
   };
 
-  const handleCompleteAppointment = (id: number) => {
-    setAppointments(appointments.map((a) => (a.id === id ? { ...a, status: 'completed' } : a)));
+  const handleSaveAndComplete = async (id: string) => {
+    try {
+      if (editForm.notes) {
+        await editarNotasMutation.mutateAsync({ id, notas_doctor: editForm.notes });
+      }
 
-    toast.success('Consulta completada', {
-      description: 'Los detalles médicos se han guardado y la consulta ha finalizado',
-    });
+      const payload: Record<string, unknown> = {};
+      if (editForm.date) payload.fecha = editForm.date;
+      if (editForm.time) payload.hora = editForm.time;
+      if (editForm.clinic) payload.clinica_id = editForm.clinic;
+      if (editForm.specialty) payload.especialidad = editForm.specialty;
+
+      if (Object.keys(payload).length > 0) {
+        await actualizarCitaMutation.mutateAsync({ id, payload });
+      }
+
+      await cambiarEstadoMutation.mutateAsync({ id, estado: 'completed' });
+      toast.success('Consulta guardada y completada');
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo guardar la consulta');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -160,13 +136,18 @@ export default function DoctorAgenda() {
   };
 
   // Filter appointments by selected date
-  const filteredAppointments = selectedDate
-    ? appointments.filter((a) => {
-        const appointmentDate = new Date(a.date);
-        return appointmentDate.toDateString() === selectedDate.toDateString();
-      })
-    : appointments;
+  const mappedAppointments = (citasDoctor || []).map((c) => ({
+    id: c.id,
+    patient: c.patientId || 'Paciente',
+    ci: '',
+    date: c.date,
+    time: c.time,
+    specialty: c.specialty,
+    clinic: c.clinic,
+    status: c.status,
+  }));
 
+  const filteredAppointments = mappedAppointments;
   const upcomingAppointments = filteredAppointments.filter((a) => a.status === 'confirmed');
 
   return (
@@ -265,8 +246,8 @@ export default function DoctorAgenda() {
                                 <p>¿Estás seguro de cancelar la cita con {appointment.patient}?</p>
                                 <div className="p-3 bg-cyan-50 rounded-md border border-cyan-200">
                                   <p className="text-sm text-cyan-800">
-                                    <strong>Nota:</strong> El paciente será notificado y no recibirá
-                                    penalización. El horario quedará disponible para otra reserva.
+                                    <strong>Nota:</strong> El paciente será notificado y el horario
+                                    quedará disponible para otra reserva.
                                   </p>
                                 </div>
                               </AlertDialogDescription>
@@ -274,9 +255,7 @@ export default function DoctorAgenda() {
                             <AlertDialogFooter>
                               <AlertDialogCancel>No, mantener</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() =>
-                                  handleCancelAppointment(appointment.id, 'Cancelada por el médico')
-                                }
+                                onClick={() => handleCancelAppointment(appointment.id)}
                                 className="bg-red-600 hover:bg-red-700"
                               >
                                 Sí, cancelar
@@ -306,8 +285,7 @@ export default function DoctorAgenda() {
                                 <div className="p-3 bg-orange-50 rounded-md border border-orange-200">
                                   <p className="text-sm text-orange-800">
                                     <strong>Atención:</strong> Al confirmar esta acción, el sistema
-                                    registrará la inasistencia y el usuario recibirá una
-                                    penalización de bloqueo por 1 año (según la regla del backend).
+                                    registrará la inasistencia en la agenda médica.
                                   </p>
                                 </div>
                               </AlertDialogDescription>
@@ -325,7 +303,20 @@ export default function DoctorAgenda() {
                         </AlertDialog>
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="sm">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditForm({
+                                  patient: appointment.patient,
+                                  date: appointment.date,
+                                  time: appointment.time,
+                                  clinic: appointment.clinic,
+                                  specialty: appointment.specialty,
+                                  notes: '',
+                                });
+                              }}
+                            >
                               <Edit className="w-4 h-4 mr-2" />
                               Editar Consulta
                             </Button>
@@ -355,7 +346,10 @@ export default function DoctorAgenda() {
                                 <Input
                                   id="date"
                                   type="date"
-                                  defaultValue={appointment.date}
+                                  value={editForm.date}
+                                  onChange={(e) =>
+                                    setEditForm({ ...editForm, date: e.target.value })
+                                  }
                                   className="w-full"
                                 />
                               </div>
@@ -364,7 +358,10 @@ export default function DoctorAgenda() {
                                 <Input
                                   id="time"
                                   type="time"
-                                  defaultValue={appointment.time}
+                                  value={editForm.time}
+                                  onChange={(e) =>
+                                    setEditForm({ ...editForm, time: e.target.value })
+                                  }
                                   className="w-full"
                                 />
                               </div>
@@ -372,7 +369,10 @@ export default function DoctorAgenda() {
                                 <Label htmlFor="specialty">Especialidad</Label>
                                 <Input
                                   id="specialty"
-                                  defaultValue={appointment.specialty}
+                                  value={editForm.specialty}
+                                  onChange={(e) =>
+                                    setEditForm({ ...editForm, specialty: e.target.value })
+                                  }
                                   className="w-full"
                                 />
                               </div>
@@ -380,7 +380,10 @@ export default function DoctorAgenda() {
                                 <Label htmlFor="clinic">Clínica</Label>
                                 <Input
                                   id="clinic"
-                                  defaultValue={appointment.clinic}
+                                  value={editForm.clinic}
+                                  onChange={(e) =>
+                                    setEditForm({ ...editForm, clinic: e.target.value })
+                                  }
                                   className="w-full"
                                 />
                               </div>
@@ -390,6 +393,8 @@ export default function DoctorAgenda() {
                                   id="notes"
                                   placeholder="Añade notas sobre la consulta"
                                   className="w-full"
+                                  value={editForm.notes}
+                                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                                 />
                               </div>
                             </div>
@@ -399,15 +404,13 @@ export default function DoctorAgenda() {
                                   Cancelar
                                 </Button>
                               </DialogClose>
-                              <DialogClose asChild>
-                                <Button
-                                  type="button"
-                                  onClick={() => handleCompleteAppointment(appointment.id)}
-                                  className="bg-cyan-500 hover:bg-cyan-600"
-                                >
-                                  Guardar y Completar
-                                </Button>
-                              </DialogClose>
+                              <Button
+                                type="button"
+                                onClick={() => handleSaveAndComplete(appointment.id)}
+                                className="bg-cyan-500 hover:bg-cyan-600"
+                              >
+                                Guardar y Completar
+                              </Button>
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>

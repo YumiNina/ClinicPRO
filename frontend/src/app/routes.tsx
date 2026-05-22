@@ -10,11 +10,14 @@ import RegisterDoctor from './pages/admin/RegisterDoctor';
 import RegisterPatient from './pages/admin/RegisterPatient';
 import DoctorAgenda from './pages/doctor/DoctorAgenda';
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
+import DoctorHistories from './pages/doctor/DoctorHistories';
 import PatientHistoryView from './pages/doctor/PatientHistoryView';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import RecoverPassword from './pages/RecoverPassword';
 import Register from './pages/Register';
+import BookAppointmentReception from './pages/reception/BookAppointmentReception';
+import ReceptionDashboard from './pages/reception/ReceptionDashboard';
 import Inbox from './pages/shared/Inbox';
 import Profile from './pages/shared/Profile';
 
@@ -49,7 +52,11 @@ export const router = createBrowserRouter([
     Component: DoctorLayout,
     children: [
       { index: true, Component: DoctorDashboard },
+      { path: 'appointments', Component: AllAppointments },
+      { path: 'book-appointment', Component: BookAppointmentReception },
+      { path: 'register-patient', Component: RegisterPatient },
       { path: 'agenda', Component: DoctorAgenda },
+      { path: 'histories', Component: DoctorHistories },
       { path: 'patient-history/:id', Component: PatientHistoryView },
       { path: 'inbox', Component: Inbox },
       { path: 'profile', element: <Profile role="doctor" /> },
@@ -63,6 +70,7 @@ export const router = createBrowserRouter([
       { path: 'register-clinic', Component: RegisterClinic },
       { path: 'register-doctor', Component: RegisterDoctor },
       { path: 'register-patient', Component: RegisterPatient },
+      { path: 'book-appointment', Component: BookAppointmentReception },
       { path: 'appointments', Component: AllAppointments },
       { path: 'users', Component: AdminUsers },
       { path: 'profile', element: <Profile role="admin" /> },
@@ -72,7 +80,8 @@ export const router = createBrowserRouter([
     path: '/reception',
     Component: ReceptionLayout,
     children: [
-      { index: true, Component: AllAppointments },
+      { index: true, Component: ReceptionDashboard },
+      { path: 'book-appointment', Component: BookAppointmentReception },
       { path: 'appointments', Component: AllAppointments },
       { path: 'register-patient', Component: RegisterPatient },
       { path: 'inbox', Component: Inbox },

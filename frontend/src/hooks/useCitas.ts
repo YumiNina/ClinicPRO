@@ -4,6 +4,7 @@ import { citasClient, historialClient } from '../services/api-client';
 // interfaces cita
 export interface Cita {
   id: string;
+  patientId: string;
   specialty: string;
   doctor: string;
   clinic: string;
@@ -36,6 +37,7 @@ type NuevaCitaApi = {
 //mapeo para la api(back citas)
 const mapCitaApiToUi = (cita: CitaApi): Cita => ({
   id: cita.id,
+  patientId: cita.paciente_id,
   specialty: cita.especialidad,
   doctor: cita.medico_id,
   clinic: cita.clinica_id,
@@ -113,11 +115,47 @@ export const useCitas = () => {
     },
   });
 
+  // cambiar estado (generic)
+  const cambiarEstadoMutation = useMutation({
+    mutationFn: async ({ id, estado }: { id: string; estado: string }) => {
+      const { data } = await citasClient.patch(`/citas/${id}/estado`, { estado });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['citas'] });
+    },
+  });
+
+  // editar notas del doctor
+  const editarNotasMutation = useMutation({
+    mutationFn: async ({ id, notas_doctor }: { id: string; notas_doctor: string }) => {
+      const { data } = await citasClient.patch(`/citas/${id}/notas`, { notas_doctor });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['citas'] });
+    },
+  });
+
+  // actualizar detalles de la cita
+  const actualizarCitaMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Partial<NuevaCitaApi> | Record<string, unknown> }) => {
+      const { data } = await citasClient.put(`/citas/${id}`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['citas'] });
+    },
+  });
+
   return {
     useCitasPaciente,
     useHistorialPaciente,
     useCitasDoctor,
     agendarCitaMutation,
     cancelarCitaMutation,
+    cambiarEstadoMutation,
+    editarNotasMutation,
+    actualizarCitaMutation,
   };
 };

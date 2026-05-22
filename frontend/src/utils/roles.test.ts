@@ -21,6 +21,7 @@ describe('role routing helpers', () => {
 
   it('normalizes route names to persisted roles', () => {
     expect(normalizeRouteRole('doctor')).toBe('medico');
+    expect(normalizeRouteRole('reception')).toBe('recepcionista');
     expect(normalizeRouteRole('admin')).toBe('admin');
   });
 });

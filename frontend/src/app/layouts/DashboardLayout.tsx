@@ -25,14 +25,14 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 
 interface DashboardLayoutProps {
-  role: 'patient' | 'doctor' | 'admin' | 'reception';
+  role: 'doctor' | 'admin' | 'reception';
 }
 
 export default function DashboardLayout({ role }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { useCitasPaciente, useCitasDoctor } = useCitas();
+  const { useCitasDoctor } = useCitas();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -41,18 +41,11 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
 
   const currentUser = user || JSON.parse(localStorage.getItem('clinicpro_user') || '{}');
   const userName = currentUser.nombre_completo || 'Usuario Demo';
-  const patientId = role === 'patient' ? currentUser.id || '' : '';
   const doctorId = role === 'doctor' ? currentUser.id || '' : '';
 
-  const { data: patientAppointments } = useCitasPaciente(patientId);
   const { data: doctorAppointments } = useCitasDoctor(doctorId);
 
-  const appointments =
-    role === 'doctor'
-      ? doctorAppointments || []
-      : role === 'patient'
-        ? patientAppointments || []
-        : [];
+  const appointments = role === 'doctor' ? doctorAppointments || [] : [];
   const showNotificationControls = role !== 'admin';
 
   const notifications = appointments
@@ -113,34 +106,13 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
     navigate('/');
   };
 
-  const patientMenuItems = [
-    { path: '/patient', icon: Home, label: 'Inicio' },
-    {
-      path: '/patient/book-appointment',
-      icon: Calendar,
-      label: 'Reservar Cita',
-    },
-    {
-      path: '/patient/my-appointments',
-      icon: ClipboardList,
-      label: 'Mis Citas',
-    },
-    {
-      path: '/patient/medical-history',
-      icon: FileText,
-      label: 'Historial Médico',
-    },
-    {
-      path: '/patient/inbox',
-      icon: Inbox,
-      label: 'Bandeja de Entrada',
-      badge: unreadCount,
-    },
-  ];
-
   const doctorMenuItems = [
     { path: '/doctor', icon: Home, label: 'Inicio' },
     { path: '/doctor/agenda', icon: Calendar, label: 'Mi Agenda' },
+    { path: '/doctor/appointments', icon: ClipboardList, label: 'Gestionar Citas' },
+    { path: '/doctor/book-appointment', icon: Calendar, label: 'Agendar Cita' },
+    { path: '/doctor/register-patient', icon: UserPlus, label: 'Registrar Paciente' },
+    { path: '/doctor/histories', icon: FileText, label: 'Historiales' },
     {
       path: '/doctor/inbox',
       icon: Inbox,
@@ -167,13 +139,20 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
       label: 'Registrar Paciente',
     },
     {
+      path: '/admin/book-appointment',
+      icon: Calendar,
+      label: 'Agendar Cita',
+    },
+    {
       path: '/admin/users',
       icon: Users,
       label: 'Usuarios',
     },
   ];
   const receptionMenuItems = [
-    { path: '/reception', icon: Calendar, label: 'Gestionar Citas' },
+    { path: '/reception', icon: Home, label: 'Inicio' },
+    { path: '/reception/book-appointment', icon: Calendar, label: 'Agendar Cita' },
+    { path: '/reception/appointments', icon: ClipboardList, label: 'Gestionar Citas' },
     {
       path: '/reception/register-patient',
       icon: UserPlus,
@@ -188,16 +167,13 @@ export default function DashboardLayout({ role }: DashboardLayoutProps) {
   ];
 
   const menuItems =
-    role === 'patient'
-      ? patientMenuItems
-      : role === 'doctor'
-        ? doctorMenuItems
-        : role === 'reception'
-          ? receptionMenuItems
-          : adminMenuItems;
+    role === 'doctor'
+      ? doctorMenuItems
+      : role === 'reception'
+        ? receptionMenuItems
+        : adminMenuItems;
 
   const roleNames = {
-    patient: 'Paciente',
     doctor: 'Médico',
     admin: 'Administrador',
     reception: 'Recepcionista',

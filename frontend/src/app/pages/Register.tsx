@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios';
 import { CreditCard, Lock, Mail, Phone, User } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -68,10 +69,10 @@ export default function Register() {
       return;
     }
 
-    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[\W_]).{8,}$/;
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
     if (!passwordRegex.test(formData.password)) {
       toast.error(
-        'La contraseña debe tener al menos 8 caracteres, incluir letras, números y un carácter especial',
+        'La contraseña debe tener mayúscula, minúscula, número y carácter especial',
       );
       return;
     }
@@ -99,8 +100,13 @@ export default function Register() {
       }, 1500);
     } catch (error: unknown) {
       console.error('Error al registrar:', error);
+      const backendMessage =
+        error instanceof AxiosError
+          ? error.response?.data?.message || 'No se pudo registrar la cuenta'
+          : null;
       const message =
-        error instanceof Error ? error.message : 'Error de conexión con el backend de Auth';
+        backendMessage ||
+        (error instanceof Error ? error.message : 'Error de conexión con el backend de Auth');
       toast.error(message);
       setLoading(false);
     }

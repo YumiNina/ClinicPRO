@@ -3,17 +3,17 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle,
-  Download,
-  Eye,
+  Edit,
   FileText,
-  Lock,
+  Save,
   User,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { useAuth } from '../../../hooks/useAuth';
-import { historialClient } from '../../../services/api-client';
+import { apiClient, historialClient } from '../../../services/api-client';
+import { currentYearEndInputValue, todayInputValue } from '../../../utils/form-validation';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -24,386 +24,419 @@ import {
   CardHeader,
   CardTitle,
 } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Textarea } from '../../components/ui/textarea';
+
+type PatientInfo = {
+  id: string;
+  nombre_completo?: string;
+  nombre_apellido?: string;
+  ci?: string;
+  dni_nie?: string;
+  fecha_nacimiento?: string;
+  telefono?: string;
+  email?: string;
+  direccion?: string;
+};
+
+type MedicalRecord = {
+  id: string;
+  paciente_id: string;
+  diagnostico?: string;
+  severidad?: string;
+  medico_encargado?: string;
+  descripcion?: string;
+  tratamiento?: string;
+  proxima_cita?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+const emptyForm = {
+  motivo: '',
+  diagnostico: '',
+  tratamiento: '',
+  severidad: 'MEDIA',
+  proximaCita: '',
+};
+
+const formatDate = (dateString?: string) => {
+  if (!dateString) return 'Sin fecha';
+  return new Date(dateString).toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+const calculateAge = (birthDate?: string) => {
+  if (!birthDate) return 'No registrada';
+
+  const birth = new Date(birthDate);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age -= 1;
+  }
+
+  return `${age} años`;
+};
 
 export default function PatientHistoryView() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [isConsultationActive, setIsConsultationActive] = useState(true);
-  const [motivo, setMotivo] = useState('');
-  const [diagnostico, setDiagnostico] = useState('');
-  const [tratamiento, setTratamiento] = useState('');
-  const [severidad, setSeveridad] = useState('MEDIA');
+  const [patientInfo, setPatientInfo] = useState<PatientInfo | null>(null);
+  const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [formData, setFormData] = useState(emptyForm);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Simulated JWT access control
-  const hasActiveAccess = isConsultationActive;
-  const accessExpiresAt = '10:30 hrs';
+  const loadHistory = useCallback(async () => {
+    if (!id) return;
 
-  const handleFinishConsultation = () => {
-    toast.success('Consulta finalizada correctamente');
-    setIsConsultationActive(false);
-    setTimeout(() => {
-      navigate('/doctor');
-    }, 1500);
+    try {
+      setIsLoading(true);
+      const [patientResponse, historyResponse] = await Promise.all([
+        apiClient.get(`/pacientes/${id}`),
+        historialClient.get<MedicalRecord[]>(`/historial/paciente/${id}`),
+      ]);
+
+      setPatientInfo(patientResponse.data.data);
+      setMedicalRecords(historyResponse.data || []);
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo cargar el expediente del paciente');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  const handleNewRecord = () => {
+    setEditingRecordId(null);
+    setFormData(emptyForm);
+  };
+
+  const handleEditRecord = (record: MedicalRecord) => {
+    setEditingRecordId(record.id);
+    setFormData({
+      motivo: record.descripcion || '',
+      diagnostico: record.diagnostico || '',
+      tratamiento: record.tratamiento || '',
+      severidad: record.severidad || 'MEDIA',
+      proximaCita: record.proxima_cita || '',
+    });
   };
 
   const handleGuardarConsulta = async () => {
-    if (!diagnostico) {
-      toast.error('El diagnóstico es obligatorio mínimo 3 letras');
+    if (!id) return;
+
+    if (formData.diagnostico.trim().length < 3) {
+      toast.error('El diagnóstico debe tener al menos 3 caracteres');
       return;
     }
 
     try {
       setIsSaving(true);
       const payloadHistorial = {
-        paciente_id: String(id), // ID del paciente mandado en la ruta
-        diagnostico: diagnostico,
-        severidad: severidad,
-        medico_encargado: user?.nombre_completo || 'Dr. Médico',
-        descripcion: motivo,
-        tratamiento: tratamiento,
+        paciente_id: String(id),
+        diagnostico: formData.diagnostico.trim(),
+        severidad: formData.severidad,
+        medico_encargado: user?.nombre_completo || 'Médico Clinic Pro',
+        descripcion: formData.motivo.trim(),
+        tratamiento: formData.tratamiento.trim(),
+        proxima_cita: formData.proximaCita || undefined,
       };
 
-      await historialClient.post('/historial', payloadHistorial, {
-        withCredentials: true,
-      });
+      if (editingRecordId) {
+        await historialClient.put(`/historial/${editingRecordId}`, payloadHistorial);
+        toast.success('Historial actualizado correctamente');
+      } else {
+        await historialClient.post('/historial', payloadHistorial);
+        toast.success('Nuevo historial agregado al expediente');
+      }
 
-      toast.success('Consulta y diagnóstico guardados en el historial del paciente');
-      handleFinishConsultation();
+      handleNewRecord();
+      await loadHistory();
     } catch (error) {
       console.error(error);
-      toast.error('Ocurrió un error al guardar el historial en el servidor');
+      toast.error('No se pudo guardar el historial médico');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const patientInfo = {
-    name: 'María López Sánchez',
-    ci: '23456789',
-    age: 45,
-    bloodType: 'O+',
-    allergies: 'Penicilina',
-    phone: '70123456',
-    email: 'maria.lopez@email.com',
-  };
-
-  const medicalRecords = [
-    {
-      id: 1,
-      type: 'consultation',
-      title: 'Consulta Cardiológica',
-      date: '2025-12-15',
-      doctor: 'Dr. Carlos Mendoza',
-      diagnosis: 'Hipertensión arterial leve',
-      notes: 'Control de presión arterial. Se recomienda dieta baja en sodio y ejercicio regular.',
-    },
-    {
-      id: 2,
-      type: 'study',
-      title: 'Electrocardiograma',
-      date: '2025-12-15',
-      doctor: 'Dr. Carlos Mendoza',
-      diagnosis: 'Ritmo sinusal normal',
-      notes: 'Estudio complementario sin alteraciones significativas.',
-    },
-    {
-      id: 3,
-      type: 'consultation',
-      title: 'Medicina General',
-      date: '2025-10-20',
-      doctor: 'Dr. Juan Pérez',
-      diagnosis: 'Gripe común',
-      notes: 'Cuadro viral respiratorio. Tratamiento sintomático por 7 días.',
-    },
-  ];
-
-  const currentMedications = [
-    { name: 'Enalapril 10mg', dosage: '1 tableta cada 12 horas', duration: 'Continuo' },
-    { name: 'Aspirina 100mg', dosage: '1 tableta al día', duration: 'Continuo' },
-  ];
+  const patientName =
+    patientInfo?.nombre_completo || patientInfo?.nombre_apellido || 'Paciente sin nombre';
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/doctor')}>
-            <ArrowLeft className="w-5 h-5" />
+          <Button variant="ghost" size="icon" onClick={() => navigate('/doctor/histories')}>
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Historial del Paciente</h2>
-            <p className="text-gray-600">Acceso temporal durante la consulta</p>
+            <p className="text-gray-600">
+              Consulta, agrega y edita registros clínicos del expediente.
+            </p>
           </div>
         </div>
 
-        {hasActiveAccess && (
-          <Button
-            variant="default"
-            className="bg-green-600 hover:bg-green-700"
-            onClick={handleFinishConsultation}
-          >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Finalizar Consulta
-          </Button>
-        )}
+        <Button variant="outline" onClick={handleNewRecord}>
+          <FileText className="mr-2 h-4 w-4" />
+          Nuevo registro
+        </Button>
       </div>
 
-      {/* Access Control Alert */}
-      {hasActiveAccess ? (
-        <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-          <div className="flex items-start gap-3">
-            <Lock className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-green-800">Acceso Activo</p>
-              <p className="text-sm text-green-700 mt-1">
-                Tu token JWT es válido hasta las {accessExpiresAt}. El acceso se revocará
-                automáticamente al finalizar la consulta.
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          El médico puede crear nuevos registros y corregir información clínica del historial. Los
+          datos se guardan en la tabla de consultas médicas del backend.
+        </AlertDescription>
+      </Alert>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Información del Paciente</CardTitle>
+          <CardDescription>{isLoading ? 'Cargando datos...' : patientName}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-sm text-gray-600">Nombre Completo</p>
+              <p className="font-medium text-gray-900">{patientName}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">CI</p>
+              <p className="font-medium text-gray-900">
+                {patientInfo?.ci || patientInfo?.dni_nie || 'Sin CI'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Edad</p>
+              <p className="font-medium text-gray-900">
+                {calculateAge(patientInfo?.fecha_nacimiento)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Teléfono</p>
+              <p className="font-medium text-gray-900">{patientInfo?.telefono || 'Sin teléfono'}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-sm text-gray-600">Email</p>
+              <p className="font-medium text-gray-900">{patientInfo?.email || 'Sin email'}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-sm text-gray-600">Dirección</p>
+              <p className="font-medium text-gray-900">
+                {patientInfo?.direccion || 'Sin dirección registrada'}
               </p>
             </div>
           </div>
-        </div>
-      ) : (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Acceso Denegado:</strong> Solo puedes acceder al historial durante el horario de
-            la cita.
-          </AlertDescription>
-        </Alert>
-      )}
+        </CardContent>
+      </Card>
 
-      {hasActiveAccess && (
-        <>
-          {/* Patient Info */}
+      <Tabs defaultValue="history" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="history">Historial Médico</TabsTrigger>
+          <TabsTrigger value="current">
+            {editingRecordId ? 'Editar Registro' : 'Agregar Registro'}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="history" className="mt-6 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Información del Paciente</CardTitle>
-              <CardDescription>Datos personales y generales</CardDescription>
+              <CardTitle>Registros clínicos</CardTitle>
+              <CardDescription>
+                {medicalRecords.length} registros guardados para este paciente.
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Nombre Completo</p>
-                  <p className="font-medium text-gray-900">{patientInfo.name}</p>
+            <CardContent className="space-y-4">
+              {medicalRecords.map((record) => (
+                <div key={record.id} className="rounded-lg border border-slate-200 p-4">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <h4 className="font-semibold text-gray-900">
+                          {record.diagnostico || 'Consulta médica'}
+                        </h4>
+                        <Badge variant="secondary">{record.severidad || 'Sin severidad'}</Badge>
+                      </div>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          <span>{formatDate(record.created_at)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          <span>{record.medico_encargado || 'Médico no registrado'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => handleEditRecord(record)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Editar
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <p className="font-medium text-gray-700">Motivo / descripción:</p>
+                      <p className="text-gray-600">{record.descripcion || 'Sin descripción'}</p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-700">Tratamiento:</p>
+                      <p className="text-gray-600">{record.tratamiento || 'Sin tratamiento'}</p>
+                    </div>
+                    {record.proxima_cita && (
+                      <div>
+                        <p className="font-medium text-gray-700">Próxima cita sugerida:</p>
+                        <p className="text-gray-600">{formatDate(record.proxima_cita)}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">CI</p>
-                  <p className="font-medium text-gray-900">{patientInfo.ci}</p>
+              ))}
+              {medicalRecords.length === 0 && (
+                <div className="rounded-lg border border-dashed border-slate-300 p-8 text-center">
+                  <FileText className="mx-auto mb-3 h-10 w-10 text-slate-400" />
+                  <p className="font-medium text-slate-900">Sin historial registrado</p>
+                  <p className="text-sm text-slate-500">
+                    Agrega el primer diagnóstico desde la pestaña de registro.
+                  </p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Edad</p>
-                  <p className="font-medium text-gray-900">{patientInfo.age} años</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="current" className="mt-6 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {editingRecordId ? 'Editar registro clínico' : 'Agregar registro clínico'}
+              </CardTitle>
+              <CardDescription>
+                Registra diagnóstico, tratamiento e indicaciones para el paciente.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="motivo">Motivo de consulta</Label>
+                <Textarea
+                  id="motivo"
+                  placeholder="Describe el motivo de la consulta..."
+                  value={formData.motivo}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, motivo: event.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="diagnostico">Diagnóstico *</Label>
+                <Textarea
+                  id="diagnostico"
+                  placeholder="Ingresa el diagnóstico..."
+                  value={formData.diagnostico}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, diagnostico: event.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="severidad">Severidad</Label>
+                  <Select
+                    value={formData.severidad}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, severidad: value }))
+                    }
+                  >
+                    <SelectTrigger id="severidad">
+                      <SelectValue placeholder="Selecciona severidad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BAJA">Baja</SelectItem>
+                      <SelectItem value="MEDIA">Media</SelectItem>
+                      <SelectItem value="ALTA">Alta</SelectItem>
+                      <SelectItem value="CRITICA">Crítica</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Tipo de Sangre</p>
-                  <p className="font-medium text-gray-900">{patientInfo.bloodType}</p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="proximaCita">Próxima cita sugerida</Label>
+                  <Input
+                    id="proximaCita"
+                    type="date"
+                    value={formData.proximaCita}
+                    min={todayInputValue()}
+                    max={currentYearEndInputValue()}
+                    onChange={(event) =>
+                      setFormData((prev) => ({ ...prev, proximaCita: event.target.value }))
+                    }
+                  />
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Alergias</p>
-                  <p className="font-medium text-red-600">{patientInfo.allergies}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Teléfono</p>
-                  <p className="font-medium text-gray-900">{patientInfo.phone}</p>
-                </div>
-                <div className="sm:col-span-2">
-                  <p className="text-sm text-gray-600">Email</p>
-                  <p className="font-medium text-gray-900">{patientInfo.email}</p>
-                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="tratamiento">Tratamiento / indicaciones</Label>
+                <Textarea
+                  id="tratamiento"
+                  placeholder="Tratamiento prescrito, recomendaciones o indicaciones..."
+                  value={formData.tratamiento}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, tratamiento: event.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button className="flex-1" onClick={handleGuardarConsulta} disabled={isSaving}>
+                  {isSaving ? (
+                    'Guardando...'
+                  ) : (
+                    <>
+                      {editingRecordId ? (
+                        <Save className="mr-2 h-4 w-4" />
+                      ) : (
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                      )}
+                      {editingRecordId ? 'Actualizar historial' : 'Guardar historial'}
+                    </>
+                  )}
+                </Button>
+                <Button type="button" variant="outline" className="flex-1" onClick={handleNewRecord}>
+                  Limpiar formulario
+                </Button>
               </div>
             </CardContent>
           </Card>
-
-          {/* Tabs for different sections */}
-          <Tabs defaultValue="history" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="history">Historial Médico</TabsTrigger>
-              <TabsTrigger value="medications">Medicamentos</TabsTrigger>
-              <TabsTrigger value="current">Consulta Actual</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="history" className="space-y-4 mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Historial Médico Completo</CardTitle>
-                  <CardDescription>
-                    Consultas, diagnósticos y estudios previos (PDF)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {medicalRecords.map((record) => (
-                    <div key={record.id} className="p-4 border rounded-lg">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-semibold text-gray-900">{record.title}</h4>
-                            <Badge
-                              variant={record.type === 'consultation' ? 'default' : 'secondary'}
-                            >
-                              {record.type === 'consultation' ? 'Consulta' : 'Estudio'}
-                            </Badge>
-                          </div>
-                          <div className="space-y-1 text-sm text-gray-600">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4" />
-                              <span>
-                                {new Date(record.date).toLocaleDateString('es-ES', {
-                                  day: '2-digit',
-                                  month: 'long',
-                                  year: 'numeric',
-                                })}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <User className="w-4 h-4" />
-                              <span>{record.doctor}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <FileText className="w-10 h-10 text-cyan-600" />
-                      </div>
-
-                      <div className="space-y-2 mb-3">
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">Diagnóstico:</p>
-                          <p className="text-sm text-gray-900">{record.diagnosis}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">Notas:</p>
-                          <p className="text-sm text-gray-600">{record.notes}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ver PDF
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Download className="w-4 h-4 mr-2" />
-                          Descargar
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="medications" className="space-y-4 mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Medicamentos Actuales</CardTitle>
-                  <CardDescription>Tratamientos en curso del paciente</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {currentMedications.map((med, index) => (
-                    <div key={index} className="p-4 bg-cyan-50 border border-cyan-200 rounded-lg">
-                      <h4 className="font-semibold text-gray-900 mb-2">{med.name}</h4>
-                      <div className="space-y-1 text-sm text-gray-700">
-                        <p>
-                          <strong>Dosificación:</strong> {med.dosage}
-                        </p>
-                        <p>
-                          <strong>Duración:</strong> {med.duration}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="current" className="space-y-4 mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Consulta Actual</CardTitle>
-                  <CardDescription>Registra el diagnóstico y tratamiento de hoy</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Importante:</strong> Solo puedes editar los datos de la consulta
-                      actual. El historial médico previo es de solo lectura.
-                    </AlertDescription>
-                  </Alert>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Motivo de Consulta
-                      </label>
-                      <textarea
-                        className="w-full min-h-[80px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-600 focus:border-transparent"
-                        placeholder="Describe el motivo de la consulta..."
-                        value={motivo}
-                        onChange={(e) => setMotivo(e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Diagnóstico <span className="text-red-500">*</span>
-                      </label>
-                      <textarea
-                        className="w-full min-h-[80px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-600 focus:border-transparent"
-                        placeholder="Ingresa el diagnóstico..."
-                        value={diagnostico}
-                        onChange={(e) => setDiagnostico(e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Severidad
-                      </label>
-                      <select
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-600 focus:border-transparent"
-                        value={severidad}
-                        onChange={(e) => setSeveridad(e.target.value)}
-                      >
-                        <option value="BAJA">Baja</option>
-                        <option value="MEDIA">Media</option>
-                        <option value="ALTA">Alta</option>
-                        <option value="CRITICA">Crítica</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Tratamiento/Indicaciones
-                      </label>
-                      <textarea
-                        className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-600 focus:border-transparent"
-                        placeholder="Tratamiento prescrito, indicaciones, recomendaciones..."
-                        value={tratamiento}
-                        onChange={(e) => setTratamiento(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button
-                        className="flex-1"
-                        onClick={handleGuardarConsulta}
-                        disabled={isSaving}
-                      >
-                        {isSaving ? 'Guardando...' : 'Guardar Consulta'}
-                      </Button>
-                      <Button variant="outline" className="flex-1" disabled={isSaving}>
-                        Guardar Borrador
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

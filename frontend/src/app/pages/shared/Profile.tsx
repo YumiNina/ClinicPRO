@@ -1,24 +1,29 @@
 import {
   BriefcaseBusiness,
   CalendarDays,
+  ClipboardList,
   Edit,
+  FileText,
   HeartPulse,
   IdCard,
   KeyRound,
   LockKeyhole,
   Mail,
-  MapPin,
   Phone,
   ShieldCheck,
+  UserPlus,
   UserRound,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { useAuth } from '../../../hooks/useAuth';
+import { apiClient } from '../../../services/api-client';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 
 interface ProfileProps {
-  role: 'patient' | 'doctor' | 'admin' | 'reception';
+  role: 'doctor' | 'admin' | 'reception';
 }
 
 type ProfileField = {
@@ -27,48 +32,28 @@ type ProfileField = {
   icon: typeof UserRound;
 };
 
+type DoctorDashboardRow = Record<string, string | number | boolean | null | undefined>;
+
 export default function Profile({ role }: ProfileProps) {
   const { user } = useAuth();
   const currentUser = user || JSON.parse(localStorage.getItem('clinicpro_user') || '{}');
   const displayName = currentUser.nombre_completo || currentUser.name;
+  const [doctorHistories, setDoctorHistories] = useState<DoctorDashboardRow[]>([]);
+  const [doctorPatients, setDoctorPatients] = useState<DoctorDashboardRow[]>([]);
+
+  useEffect(() => {
+    if (role !== 'doctor') return;
+
+    apiClient
+      .get('/doctor/dashboard')
+      .then((response) => {
+        setDoctorHistories(response.data.data?.reports?.historiales || []);
+        setDoctorPatients(response.data.data?.reports?.pacientes || []);
+      })
+      .catch((error) => console.error('No se pudo cargar resumen médico:', error));
+  }, [role]);
 
   const profileData = {
-    patient: {
-      name: displayName || 'Ana Garcia Perez',
-      email: currentUser.email || 'paciente@hospital.com',
-      ci: '12345678',
-      phone: '70123456',
-      birthDate: '15/05/1990',
-      gender: 'Femenino',
-      bloodType: 'O+',
-      address: 'Av. 6 de Agosto #1234, La Paz',
-      emergencyContact: 'Juan Garcia - 71234567',
-      headline: 'Paciente activo',
-      access: 'Portal de paciente',
-      medicalHistory: [
-        {
-          date: '15/03/2026',
-          doctor: 'Dr. Carlos Mendez',
-          specialty: 'Cardiologia',
-          diagnosis: 'Hipertension arterial controlada',
-          treatment: 'Enalapril 10mg',
-        },
-        {
-          date: '10/02/2026',
-          doctor: 'Dra. Maria Lopez',
-          specialty: 'Medicina General',
-          diagnosis: 'Gripe comun',
-          treatment: 'Paracetamol, reposo',
-        },
-        {
-          date: '20/01/2026',
-          doctor: 'Dr. Pedro Ramirez',
-          specialty: 'Traumatologia',
-          diagnosis: 'Esguince leve tobillo derecho',
-          treatment: 'Antiinflamatorios, fisioterapia',
-        },
-      ],
-    },
     doctor: {
       name: displayName || 'Dr. Carlos Mendez',
       email: currentUser.email || 'doctor@hospital.com',
@@ -109,7 +94,6 @@ export default function Profile({ role }: ProfileProps) {
   const data = profileData[role];
 
   const roleNames = {
-    patient: 'Paciente',
     doctor: 'Medico',
     admin: 'Administrador',
     reception: 'Recepcionista',
@@ -122,13 +106,6 @@ export default function Profile({ role }: ProfileProps) {
   ];
 
   const roleFields: Record<ProfileProps['role'], ProfileField[]> = {
-    patient: [
-      { label: 'Fecha de nacimiento', value: profileData.patient.birthDate, icon: CalendarDays },
-      { label: 'Genero', value: profileData.patient.gender, icon: UserRound },
-      { label: 'Tipo de sangre', value: profileData.patient.bloodType, icon: HeartPulse },
-      { label: 'Contacto de emergencia', value: profileData.patient.emergencyContact, icon: Phone },
-      { label: 'Direccion', value: profileData.patient.address, icon: MapPin },
-    ],
     doctor: [
       { label: 'Especialidad', value: profileData.doctor.specialty, icon: HeartPulse },
       { label: 'Licencia medica', value: profileData.doctor.license, icon: ShieldCheck },
@@ -246,30 +223,62 @@ export default function Profile({ role }: ProfileProps) {
         </Card>
       </div>
 
-      {role === 'patient' && (
+      {role === 'doctor' && (
         <Card className="border-slate-200 bg-slate-50/80 shadow-sm">
           <CardHeader className="border-b border-slate-200 pb-4">
-            <CardTitle className="text-base text-slate-950">Historial medico reciente</CardTitle>
+            <CardTitle className="text-base text-slate-950">
+              Historial médico de pacientes
+            </CardTitle>
           </CardHeader>
-          <CardContent className="pt-5">
-            <div className="grid gap-3">
-              {profileData.patient.medicalHistory.map((record) => (
-                <div key={`${record.date}-${record.diagnosis}`} className="rounded-lg border border-slate-200 bg-white/80 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                        {record.date} · {record.specialty}
-                      </p>
-                      <p className="mt-1 font-medium text-slate-950">{record.diagnosis}</p>
-                      <p className="mt-1 text-sm text-slate-600">{record.doctor}</p>
-                      <p className="mt-2 text-sm text-slate-500">Tratamiento: {record.treatment}</p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Ver detalle
+          <CardContent className="space-y-4 pt-5">
+            <div className="grid gap-3 md:grid-cols-3">
+              <Link to="/doctor/register-patient">
+                <Button variant="outline" className="w-full justify-start">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Registrar paciente
+                </Button>
+              </Link>
+              <Link to="/doctor/appointments">
+                <Button variant="outline" className="w-full justify-start">
+                  <ClipboardList className="mr-2 h-4 w-4" />
+                  Gestionar citas
+                </Button>
+              </Link>
+              <Link to="/doctor/histories">
+                <Button variant="outline" className="w-full justify-start">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Historiales
+                </Button>
+              </Link>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {doctorPatients.slice(0, 4).map((patient) => (
+                <div
+                  key={String(patient.id)}
+                  className="rounded-lg border border-slate-200 bg-white/80 p-4"
+                >
+                  <p className="font-medium text-slate-950">
+                    {patient.nombre_completo || patient.nombre_apellido}
+                  </p>
+                  <p className="text-sm text-slate-600">
+                    CI: {patient.ci || patient.dni_nie || 'Sin CI'}
+                  </p>
+                  <Link to={`/doctor/patient-history/${patient.id}`}>
+                    <Button variant="outline" size="sm" className="mt-3">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Ver historial
                     </Button>
-                  </div>
+                  </Link>
                 </div>
               ))}
+            </div>
+
+            <div className="rounded-lg border border-cyan-100 bg-cyan-50/70 p-4">
+              <p className="font-medium text-slate-950">Consultas registradas</p>
+              <p className="text-sm text-slate-600">
+                {doctorHistories.length} registros clínicos vinculados a tus pacientes.
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -1,5 +1,8 @@
-import { Building2, Calendar, Clock, Filter, Search, Stethoscope, User } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Building2, Calendar, Clock, Filter, Plus, Search, Stethoscope, User } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router';
+import { toast } from 'sonner';
+import { useAuth } from '../../../hooks/useAuth';
 import { apiClient } from '../../../services/api-client';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -22,6 +25,7 @@ import {
 
 interface Appointment {
   id: string;
+  patientId: string;
   patient: string;
   patientCI: string;
   doctor: string;
@@ -43,23 +47,78 @@ type CitaApi = {
   estado: Appointment['status'];
 };
 
+type Patient = {
+  id: string;
+  nombre_completo?: string;
+  nombre_apellido?: string;
+  ci?: string;
+  dni_nie?: string;
+};
+
+type Doctor = {
+  id: string;
+  usuario_id?: string;
+  nombre_completo?: string;
+};
+
+type Clinic = {
+  id: string;
+  nombre?: string;
+};
+
+type ApiListResponse<T> = {
+  data: T[];
+};
+
 export default function AllAppointments() {
+  const location = useLocation();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterDate, setFilterDate] = useState('');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const isDoctorView = location.pathname.startsWith('/doctor');
+  const isReceptionView = location.pathname.startsWith('/reception');
+  const bookAppointmentPath = isDoctorView
+    ? '/doctor/book-appointment'
+    : isReceptionView
+      ? '/reception/book-appointment'
+      : '/admin/book-appointment';
 
-  useEffect(() => {
-    apiClient
-      .get('/citas')
-      .then((response) => {
-        const mapped = ((response.data || []) as CitaApi[]).map((cita) => ({
+  const loadAppointments = useCallback(() => {
+    Promise.all([
+      apiClient.get<CitaApi[]>('/citas'),
+      apiClient.get<ApiListResponse<Patient>>('/pacientes'),
+      apiClient.get<ApiListResponse<Doctor>>('/catalogos/medicos'),
+      apiClient.get<ApiListResponse<Clinic>>('/catalogos/clinicas'),
+    ])
+      .then(([appointmentsResponse, patientsResponse, doctorsResponse, clinicsResponse]) => {
+        const patients = new Map(
+          (patientsResponse.data.data || []).map((patient) => [patient.id, patient])
+        );
+        const doctors = new Map<string, Doctor>();
+        (doctorsResponse.data.data || []).forEach((doctor) => {
+          doctors.set(doctor.id, doctor);
+          if (doctor.usuario_id) doctors.set(doctor.usuario_id, doctor);
+        });
+        const clinics = new Map(
+          (clinicsResponse.data.data || []).map((clinic) => [clinic.id, clinic])
+        );
+
+        const mapped = ((appointmentsResponse.data || []) as CitaApi[]).map((cita) => ({
           id: cita.id,
-          patient: cita.paciente_id,
-          patientCI: '',
-          doctor: cita.medico_id,
+          patientId: cita.paciente_id,
+          patient:
+            patients.get(cita.paciente_id)?.nombre_completo ||
+            patients.get(cita.paciente_id)?.nombre_apellido ||
+            cita.paciente_id,
+          patientCI:
+            patients.get(cita.paciente_id)?.ci ||
+            patients.get(cita.paciente_id)?.dni_nie ||
+            '',
+          doctor: doctors.get(cita.medico_id)?.nombre_completo || cita.medico_id,
           specialty: cita.especialidad,
-          clinic: cita.clinica_id,
+          clinic: clinics.get(cita.clinica_id)?.nombre || cita.clinica_id,
           date: cita.fecha,
           time: cita.hora,
           status: cita.estado,
@@ -68,6 +127,10 @@ export default function AllAppointments() {
       })
       .catch((error) => console.error('No se pudieron cargar citas:', error));
   }, []);
+
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -107,11 +170,49 @@ export default function AllAppointments() {
     noShow: appointments.filter((a) => a.status === 'no-show' || a.status === 'absent').length,
   };
 
+  const availableStatuses =
+    user?.rol === 'recepcionista'
+      ? ['pending', 'confirmed', 'cancelled']
+      : ['pending', 'confirmed', 'completed', 'cancelled', 'absent'];
+
+  const handleStatusChange = async (appointmentId: string, status: string) => {
+    try {
+      await apiClient.patch(`/citas/${appointmentId}/estado`, { estado: status });
+      setAppointments((prev) =>
+        prev.map((appointment) =>
+          appointment.id === appointmentId
+            ? { ...appointment, status: status as Appointment['status'] }
+            : appointment
+        )
+      );
+      toast.success('Estado de la cita actualizado');
+    } catch (error) {
+      console.error(error);
+      toast.error('No se pudo actualizar la cita');
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Todas las Citas</h2>
-        <p className="text-gray-600">Gestión completa de citas del sistema</p>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {isDoctorView ? 'Gestión de Citas Médicas' : 'Todas las Citas'}
+          </h2>
+          <p className="text-gray-600">
+            {isDoctorView
+              ? 'Consulta y actualiza las citas vinculadas a tu agenda.'
+              : 'Gestión completa de citas del sistema'}
+          </p>
+        </div>
+        {bookAppointmentPath && (
+          <Link to={bookAppointmentPath}>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Agendar cita
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Stats Overview */}
@@ -180,10 +281,11 @@ export default function AllAppointments() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="pending">Pendientes</SelectItem>
                   <SelectItem value="confirmed">Confirmadas</SelectItem>
                   <SelectItem value="completed">Completadas</SelectItem>
                   <SelectItem value="cancelled">Canceladas</SelectItem>
-                  <SelectItem value="no-show">No asistió</SelectItem>
+                  <SelectItem value="absent">No asistió</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -275,9 +377,36 @@ export default function AllAppointments() {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        Ver Detalles
-                      </Button>
+                      <Select
+                        value={apt.status}
+                        onValueChange={(value) => handleStatusChange(apt.id, value)}
+                      >
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Cambiar estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableStatuses.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {status === 'pending'
+                                ? 'Pendiente'
+                                : status === 'confirmed'
+                                  ? 'Confirmada'
+                                  : status === 'completed'
+                                    ? 'Completada'
+                                    : status === 'cancelled'
+                                      ? 'Cancelada'
+                                      : 'No asistió'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {isDoctorView && (
+                        <Link to={`/doctor/patient-history/${apt.patientId}`}>
+                          <Button variant="outline" size="sm">
+                            Historial
+                          </Button>
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>
