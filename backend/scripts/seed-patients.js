@@ -3,6 +3,7 @@ const path = require('node:path');
 const { Client } = require('pg');
 const { createClient } = require('@supabase/supabase-js');
 const dotenv = require('dotenv');
+const ws = require('ws');
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -382,22 +383,9 @@ const withLegacyPatientName = (rows) =>
     dni_nie: row.ci,
   }));
 
-const toLegacyAppointmentStatus = (status) => {
-  const statusMap = {
-    pending: 'pendiente',
-    confirmed: 'confirmada',
-    completed: 'completada',
-    cancelled: 'cancelada',
-    absent: 'no_asistio',
-  };
-
-  return statusMap[status] || status;
-};
-
 const withLegacyAppointmentDate = (rows) =>
   rows.map((row) => ({
     ...row,
-    estado: toLegacyAppointmentStatus(row.estado),
     fecha_hora: `${row.fecha}T${row.hora}:00`,
   }));
 
@@ -425,6 +413,9 @@ const seedWithSupabaseApi = async () => {
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       persistSession: false,
+    },
+    realtime: {
+      transport: ws,
     },
   });
 

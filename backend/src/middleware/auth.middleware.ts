@@ -45,12 +45,13 @@ export const authMiddleware = (
 
     next();
   } catch (error) {
-  console.error('JWT ERROR:', error);
+    if (!(error instanceof jwt.TokenExpiredError)) {
+      console.error('JWT ERROR:', error);
+    }
 
-  return res.status(401).json({
-    success: false,
-    message: 'Token inválido o expirado',
-    error: error instanceof Error ? error.message : 'Unknown error',
-  });
-}
+    return res.status(401).json({
+      success: false,
+      message: 'Tu sesión expiró. Vuelve a iniciar sesión para continuar.',
+    });
+  }
 };

@@ -30,7 +30,15 @@ export const register = async (req: Request, res: Response) => {
       message: 'Usuario registrado correctamente',
       data: user,
     });
-  } catch (_error) {
+  } catch (error) {
+    if (error instanceof Error && error.message === 'EMAIL_ALREADY_EXISTS') {
+      return res.status(409).json({
+        success: false,
+        message: 'Ya existe un usuario registrado con ese correo.',
+        field: 'email',
+      });
+    }
+
     return res.status(400).json({
       success: false,
       message: 'No se pudo registrar usuario',

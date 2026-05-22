@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
 import { Cita } from '../modules/citas/cita.entity';
-import { Penalizacion } from '../modules/citas/penalization.entity';
 
 dotenv.config();
 
@@ -10,7 +9,7 @@ export const AppDataSource = new DataSource({
   url: process.env.DATABASE_URL,
   synchronize: true, // ¡En producción cambia a false y usa migraciones!
   logging: true, // Lo cambié a true momentáneamente para ver el ciclo de vida de la conexión
-  entities: [Cita, Penalizacion],
+  entities: [Cita],
   subscribers: [],
   migrations: [],
   extra: {

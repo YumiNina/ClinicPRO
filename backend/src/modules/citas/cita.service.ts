@@ -1,33 +1,12 @@
-import { In, MoreThan, type Repository } from 'typeorm';
+import { In, type Repository } from 'typeorm';
 import { type Cita, CitaEstado } from './cita.entity';
-import { type Penalizacion, TipoPenalizacion } from './penalization.entity';
 
 // Dependencia inyectada o obtenida desde AppDataSource en la implementación real
 export class CitaService {
-  constructor(
-    private citaRepo: Repository<Cita>,
-    private penalizacionRepo: Repository<Penalizacion>,
-  ) {}
+  constructor(private citaRepo: Repository<Cita>) {}
 
   async crearCita(data: Partial<Cita>): Promise<Cita> {
-    const ahora = new Date();
-
-    // 1. Validar si tiene una penalización activa
-    const penalizacionActiva = await this.penalizacionRepo.findOne({
-      where: {
-        paciente_id: data.paciente_id,
-        activa: true,
-        fecha_fin: MoreThan(ahora),
-      },
-    });
-
-    if (penalizacionActiva) {
-      throw new Error(
-        `El paciente tiene una penalización activa hasta ${penalizacionActiva.fecha_fin}`,
-      );
-    }
-
-    // 1.5 Validar cupo ocupado: mismo médico, fecha y hora no puede duplicarse
+    // Validar cupo ocupado: mismo médico, fecha y hora no puede duplicarse
     const cupoOcupado = await this.citaRepo.findOne({
       where: {
         medico_id: data.medico_id,
@@ -111,73 +90,24 @@ export class CitaService {
   async cambiarEstado(id: string, nuevoEstado: CitaEstado): Promise<Cita> {
     const cita = await this.citaRepo.findOne({ where: { id } });
     if (!cita) throw new Error('Cita no encontrada');
-    const ahora = new Date();
-
     if (nuevoEstado === CitaEstado.CANCELLED) {
       const fechaCita = new Date(`${cita.fecha}T${cita.hora}:00`);
+      const ahora = new Date();
       const diffMs = fechaCita.getTime() - ahora.getTime();
       const diffHoras = diffMs / (1000 * 60 * 60);
       const lateCancellation = diffHoras < 3 && diffHoras > 0;
-
-      // Si la cancelación es con menos de 3 horas de anticipación
-      if (lateCancellation) {
-        await this.crearPenalizacion(
-          cita.paciente_id,
-          TipoPenalizacion.LATE_CANCELLATION,
-          30,
-        );
-      }
 
       await this.registrarCancelacionEnHistorial(cita, lateCancellation);
     }
 
     if (nuevoEstado === CitaEstado.ABSENT) {
-      // Registrar la cita como ausente antes de contar
       cita.estado = CitaEstado.ABSENT;
       await this.citaRepo.save(cita);
-
-      // Revisar si ya tiene 3 ausencias/cancelaciones tardías consecutivas
-      const ultimasCitas = await this.citaRepo.find({
-        where: { paciente_id: cita.paciente_id },
-        order: { fecha: 'DESC', hora: 'DESC' },
-        take: 3,
-      });
-
-      const ausenciasConsecutivas = ultimasCitas.filter(
-        (c) => c.estado === CitaEstado.ABSENT,
-      ).length;
-      if (ausenciasConsecutivas >= 3) {
-        await this.crearPenalizacion(
-          cita.paciente_id,
-          TipoPenalizacion.MULTIPLE_ABSENCES,
-          365,
-        ); // 1 año
-      }
     } else {
       cita.estado = nuevoEstado;
       await this.citaRepo.save(cita);
     }
     return cita;
-  }
-
-  private async crearPenalizacion(
-    paciente_id: string,
-    tipo: TipoPenalizacion,
-    dias: number,
-  ) {
-    const ahora = new Date();
-    const fechaFin = new Date();
-    fechaFin.setDate(ahora.getDate() + dias);
-
-    const penalizacion = this.penalizacionRepo.create({
-      paciente_id,
-      tipo,
-      fecha_inicio: ahora,
-      fecha_fin: fechaFin,
-      activa: true,
-    });
-
-    await this.penalizacionRepo.save(penalizacion);
   }
 
   private async registrarCancelacionEnHistorial(

@@ -3,15 +3,13 @@ import { AppDataSource } from '../../config/database';
 import { CitaController } from './cita.controller';
 import { Cita } from './cita.entity';
 import { CitaService } from './cita.service';
-import { Penalizacion } from './penalization.entity';
 
 const router = Router();
 
 export const initCitaRoutes = (): Router => {
   const citaRepo = AppDataSource.getRepository(Cita);
-  const penalizacionRepo = AppDataSource.getRepository(Penalizacion);
 
-  const citaService = new CitaService(citaRepo, penalizacionRepo);
+  const citaService = new CitaService(citaRepo);
   const citaController = new CitaController(citaService);
 
   // POST /citas - Agendar nueva cita

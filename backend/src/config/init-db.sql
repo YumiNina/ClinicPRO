@@ -30,7 +30,9 @@ CREATE TABLE IF NOT EXISTS pacientes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
   nombre_completo VARCHAR(150),
+  nombre_apellido VARCHAR(150),
   ci VARCHAR(30),
+  dni_nie VARCHAR(30),
   telefono VARCHAR(30),
   email VARCHAR(100),
   fecha_nacimiento DATE,
@@ -84,6 +86,7 @@ CREATE TABLE IF NOT EXISTS citas (
   especialidad VARCHAR NOT NULL,
   fecha VARCHAR(10) NOT NULL,
   hora VARCHAR(5) NOT NULL,
+  fecha_hora TIMESTAMPTZ,
   motivo TEXT,
   estado VARCHAR(20) NOT NULL DEFAULT 'pending'
     CHECK (estado IN ('pending', 'confirmed', 'completed', 'cancelled', 'absent')),
@@ -92,17 +95,6 @@ CREATE TABLE IF NOT EXISTS citas (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT citas_fecha_formato CHECK (fecha ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'),
   CONSTRAINT citas_hora_formato CHECK (hora ~ '^[0-9]{2}:[0-9]{2}$')
-);
-
-CREATE TABLE IF NOT EXISTS penalizaciones (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  paciente_id VARCHAR NOT NULL,
-  tipo VARCHAR(30) NOT NULL CHECK (tipo IN ('late_cancellation', 'multiple_absences')),
-  fecha_inicio TIMESTAMPTZ NOT NULL,
-  fecha_fin TIMESTAMPTZ NOT NULL,
-  activa BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS expedientes_clinicos (
@@ -141,6 +133,8 @@ CREATE TABLE IF NOT EXISTS logs (
 
 -- Additive compatibility fixes for existing Supabase projects.
 -- CREATE TABLE IF NOT EXISTS does not update tables that already exist.
+-- Penalizaciones fue removido del alcance funcional de ClinicPRO.
+DROP TABLE IF EXISTS penalizaciones;
 
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS nombre_completo VARCHAR(150);
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_hash TEXT;
@@ -158,7 +152,9 @@ ALTER TABLE sesiones ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DE
 
 ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL;
 ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS nombre_completo VARCHAR(150);
+ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS nombre_apellido VARCHAR(150);
 ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS ci VARCHAR(30);
+ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS dni_nie VARCHAR(30);
 ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS telefono VARCHAR(30);
 ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS email VARCHAR(100);
 ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE;
@@ -187,11 +183,29 @@ ALTER TABLE citas ADD COLUMN IF NOT EXISTS clinica_id VARCHAR;
 ALTER TABLE citas ADD COLUMN IF NOT EXISTS especialidad VARCHAR;
 ALTER TABLE citas ADD COLUMN IF NOT EXISTS fecha VARCHAR(10);
 ALTER TABLE citas ADD COLUMN IF NOT EXISTS hora VARCHAR(5);
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS fecha_hora TIMESTAMPTZ;
 ALTER TABLE citas ADD COLUMN IF NOT EXISTS motivo TEXT;
 ALTER TABLE citas ADD COLUMN IF NOT EXISTS estado VARCHAR(20) NOT NULL DEFAULT 'pending';
 ALTER TABLE citas ADD COLUMN IF NOT EXISTS notas_doctor TEXT;
 ALTER TABLE citas ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
 ALTER TABLE citas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+ALTER TABLE citas DROP CONSTRAINT IF EXISTS citas_estado_valido;
+ALTER TABLE citas ADD CONSTRAINT citas_estado_valido
+  CHECK (
+    estado IN (
+      'pending',
+      'confirmed',
+      'completed',
+      'cancelled',
+      'absent',
+      'pendiente',
+      'confirmada',
+      'completada',
+      'cancelada',
+      'no_asistio'
+    )
+  );
 
 ALTER TABLE expedientes_clinicos ADD COLUMN IF NOT EXISTS paciente_id VARCHAR;
 ALTER TABLE expedientes_clinicos ADD COLUMN IF NOT EXISTS antecedentes TEXT;

@@ -23,6 +23,27 @@ type AuthUserRow = {
   password_hash?: string;
 };
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const findUserByEmail = async (email: string, columns = 'id') => {
+  const normalizedEmail = normalizeEmail(email);
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select(columns)
+    .ilike('email', normalizedEmail)
+    .limit(1);
+
+  if (error) throw error;
+
+  return data?.[0] || null;
+};
+
+const isUniqueEmailError = (error: unknown) =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  (error as { code?: string }).code === '23505';
+
 const createSessionForUser = async (user: AuthUserRow) => {
   const payload: TokenPayload = {
     id: user.id,
@@ -87,14 +108,11 @@ export const authService = {
     password: string;
     rol: string;
   }) {
-    const { data: existingUser } = await supabase
-      .from('usuarios')
-      .select('id')
-      .eq('email', data.email)
-      .maybeSingle();
+    const normalizedEmail = normalizeEmail(data.email);
+    const existingUser = await findUserByEmail(normalizedEmail);
 
     if (existingUser) {
-      throw new Error('INVALID_REGISTER');
+      throw new Error('EMAIL_ALREADY_EXISTS');
     }
 
     const password_hash = await bcrypt.hash(data.password, 10);
@@ -104,7 +122,7 @@ export const authService = {
       .insert({
         id: uuidv4(),
         nombre_completo: data.nombre_completo,
-        email: data.email,
+        email: normalizedEmail,
         password_hash,
         rol: data.rol,
         activo: true,
@@ -112,18 +130,26 @@ export const authService = {
       .select('id, nombre_completo, email, rol, activo, created_at')
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (isUniqueEmailError(error)) throw new Error('EMAIL_ALREADY_EXISTS');
+      throw error;
+    }
 
     return newUser;
   },
 
   async login(email: string, password: string) {
-    const { data: user } = await supabase
+    const normalizedEmail = normalizeEmail(email);
+    const { data: users, error } = await supabase
       .from('usuarios')
       .select('*')
-      .eq('email', email)
+      .ilike('email', normalizedEmail)
       .eq('activo', true)
-      .maybeSingle();
+      .limit(1);
+
+    if (error) throw error;
+
+    const user = users?.[0];
 
     if (!user) {
       throw new Error('INVALID_CREDENTIALS');
@@ -144,13 +170,14 @@ export const authService = {
   async googleSession(supabaseAccessToken: string) {
     const googleProfile = await getGoogleProfile(supabaseAccessToken);
 
-    const { data: user, error } = await supabase
+    const { data: users, error } = await supabase
       .from('usuarios')
       .select('id, nombre_completo, email, rol, activo')
-      .eq('email', googleProfile.email)
-      .maybeSingle();
+      .ilike('email', googleProfile.email)
+      .limit(1);
 
     if (error) throw error;
+    const user = users?.[0];
 
     if (!user) {
       return {
@@ -180,13 +207,14 @@ export const authService = {
   ) {
     const googleProfile = await getGoogleProfile(supabaseAccessToken);
 
-    const { data: existingUser, error: existingUserError } = await supabase
+    const { data: existingUsers, error: existingUserError } = await supabase
       .from('usuarios')
       .select('id, nombre_completo, email, rol, activo')
-      .eq('email', googleProfile.email)
-      .maybeSingle();
+      .ilike('email', googleProfile.email)
+      .limit(1);
 
     if (existingUserError) throw existingUserError;
+    const existingUser = existingUsers?.[0];
 
     if (existingUser) {
       if (!existingUser.activo) {

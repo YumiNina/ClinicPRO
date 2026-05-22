@@ -1,6 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const path = require('node:path');
 const dotenv = require('dotenv');
+const ws = require('ws');
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -8,8 +9,8 @@ const requiredSchema = {
   usuarios:
     'id,nombre_completo,email,rol,activo,password_hash,ultimo_login,created_at,updated_at',
   sesiones: 'id,usuario_id,token_refresco,expira_en,revocado,created_at',
-  pacientes: 'id,created_at',
-  citas: 'id,paciente_id,medico_id,clinica_id,especialidad,fecha,hora,estado,created_at,updated_at',
+  pacientes: 'id,nombre_completo,nombre_apellido,ci,dni_nie,created_at',
+  citas: 'id,paciente_id,medico_id,clinica_id,especialidad,fecha,hora,fecha_hora,estado,created_at,updated_at',
   medicos: 'id,nombre_completo,created_at',
   clinicas: 'id,created_at',
   especialidades: 'id,created_at',
@@ -26,7 +27,11 @@ if (!supabaseUrl || !serviceRoleKey) {
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, serviceRoleKey);
+const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  realtime: {
+    transport: ws,
+  },
+});
 
 (async () => {
   let hasErrors = false;
