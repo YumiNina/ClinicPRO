@@ -234,6 +234,13 @@ docker run --rm --env-file backend/.env -p 3001:3001 clinicpro-backend
 
 `docker compose up --build` usa los targets `dev` de cada Dockerfile para mantener hot reload y comandos de desarrollo. Los builds de GitHub Actions usan el target `production`.
 
+Contenedores principales:
+
+- `clinicpro_backend`: servicio Express + TypeScript. Expone el puerto `3001`, lee variables desde `backend/.env`, conecta con Supabase y sirve los endpoints `/api/auth`, `/api/citas`, `/api/pacientes`, `/api/admin` y catálogos.
+- `clinicpro_frontend`: aplicación React + Vite. Expone el puerto `5174`, consume el backend por las variables `VITE_API_AUTH`, `VITE_API_CITAS` y `VITE_API_HISTORIAL`, y depende del backend para iniciar dentro de Docker Compose.
+
+La base de datos principal no corre como contenedor local porque el proyecto usa Supabase PostgreSQL como servicio externo. La conexión se controla con `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`.
+
 ## Variables de Entorno
 
 Crear `backend/.env` usando `backend/.env.example` como base.
@@ -297,10 +304,43 @@ Tablas principales:
 - `clinicas`
 - `especialidades`
 - `citas`
-- `penalizaciones`
 - `expedientes_clinicos`
 - `consultas_medicas`
 - `logs`
+
+Modelo de datos resumido:
+
+- `usuarios`: almacena usuarios internos de la clínica, su correo, hash de contraseña, rol, estado activo y último login.
+- `sesiones`: guarda refresh tokens emitidos, fecha de expiración y estado de revocación para soportar refresh token rotation y logout real.
+- `pacientes`: contiene datos clínicos y administrativos del paciente. No representa un usuario con login.
+- `medicos`: guarda información profesional del médico, especialidad, licencia y clínica asociada.
+- `clinicas`: contiene sedes o centros de atención disponibles.
+- `especialidades`: catálogo usado para clasificar médicos y citas.
+- `citas`: vincula paciente, médico, clínica, especialidad, fecha, hora, estado y notas médicas.
+- `expedientes_clinicos`: información clínica persistente del paciente.
+- `consultas_medicas`: diagnósticos, tratamiento, severidad y seguimiento.
+- `logs`: eventos relevantes para auditoría y trazabilidad.
+
+Flujo de autenticación:
+
+1. El usuario interno envía credenciales a `POST /api/auth/login`.
+2. El backend valida el payload con Zod.
+3. Se busca el usuario activo en `usuarios`.
+4. La contraseña se compara contra `password_hash` usando bcrypt.
+5. Si es válida, se generan `accessToken` y `refreshToken`.
+6. El refresh token se guarda en `sesiones`.
+7. El frontend guarda tokens bajo claves `clinicpro_access_token` y `clinicpro_refresh_token`.
+8. Axios agrega automáticamente `Authorization: Bearer <token>`.
+9. Las rutas protegidas validan el JWT con `authMiddleware`.
+10. Las rutas sensibles aplican `authorizeRoles`.
+11. Si el access token expira, el frontend llama a `/api/auth/refresh`.
+12. En logout, el refresh token se revoca en backend.
+
+Conexión y persistencia:
+
+- El backend usa `@supabase/supabase-js` para insertar, consultar, actualizar y eliminar datos.
+- Los scripts `apply:schema`, `verify:schema` y `seed:demo` usan `DATABASE_URL` para trabajar contra Supabase PostgreSQL.
+- No se versiona `backend/.env`; solo se versiona `backend/.env.example` como plantilla segura.
 
 ## Datos de Prueba
 
@@ -734,6 +774,56 @@ Evidencia para defensa:
 - En GitHub Actions mostrar logs de `Run tests`.
 - Descargar artefactos JUnit generados por el pipeline.
 - Explicar que los tests cubren reglas de negocio, errores comunes y control de acceso antes de permitir merge a `main`.
+
+## Defensa Técnica
+
+Clinic Pro puede demostrarse en una demo individual de 15 a 20 minutos siguiendo este orden:
+
+1. Mostrar la problemática: gestión clínica dispersa, falta de trazabilidad, duplicación de datos y accesos sin separación clara.
+2. Levantar el proyecto con `docker compose up --build`.
+3. Abrir el frontend en `http://localhost:5174` y el backend en `http://localhost:3001`.
+4. Ingresar con usuarios de prueba de `admin`, `medico` y `recepcionista`.
+5. Mostrar que cada rol entra a una ruta distinta y que no puede acceder a paneles ajenos.
+6. Crear o consultar pacientes, citas, médicos y clínicas.
+7. Mostrar que la información se guarda y se recupera desde Supabase.
+8. Ejecutar `npm test` en frontend y backend.
+9. Abrir GitHub Actions y mostrar `CI Pipeline` y `Dockerized CI`.
+10. Descargar un artefacto de build o reporte JUnit.
+
+Relación entre las partes del sistema:
+
+- Base de datos: Supabase PostgreSQL centraliza usuarios, sesiones, pacientes, citas, médicos, clínicas y consultas.
+- Autenticación: Express valida credenciales, genera JWT y protege endpoints; React guarda sesión y redirige por rol.
+- Docker: reproduce frontend y backend en contenedores separados, con puertos y variables controladas.
+- CI/CD: GitHub Actions instala dependencias, ejecuta lint, tests, build y genera artefactos antes de entregar.
+- Testing: Vitest valida reglas importantes para reducir regresiones en login, roles, formularios y rutas protegidas.
+
+Preguntas posibles de defensa:
+
+- ¿Por qué no existe login de paciente?
+  - Porque el alcance actual es un sistema interno para clínica. Los pacientes son registros gestionados por personal autorizado.
+- ¿Dónde se guardan las credenciales?
+  - Las contraseñas se guardan hasheadas con bcrypt en `usuarios.password_hash`. Los secretos reales van en `.env` y no se suben al repositorio.
+- ¿Cómo se protege una ruta?
+  - En frontend se usa `ProtectedRoute` y `RoleProtectedRoute`; en backend se usa `authMiddleware` y `authorizeRoles`.
+- ¿Qué pasa si expira el access token?
+  - Axios detecta el `401`, llama a `/api/auth/refresh`, guarda nuevos tokens y reintenta la solicitud.
+- ¿Cómo se demuestra que los datos se guardan?
+  - Creando datos desde la interfaz o endpoints, verificando la respuesta del backend y consultando las tablas en Supabase.
+- ¿Qué garantiza el pipeline?
+  - Que antes de aceptar cambios se instalen dependencias, pasen lint, tests, build y se generen artefactos.
+- ¿Por qué usar Docker?
+  - Para reproducir el entorno de frontend y backend de manera controlada sin depender de la configuración local de cada equipo.
+- ¿Qué pruebas son más importantes?
+  - Las de autenticación, roles, validaciones y rutas protegidas, porque evitan accesos incorrectos y datos inválidos.
+
+Checklist de rúbrica Semanas 9-14:
+
+- Base de datos y autenticación: Supabase conectado, auth JWT, refresh tokens, rutas protegidas, variables de entorno y validaciones Zod.
+- Dockerización y ejecución: Dockerfile por servicio, `.dockerignore`, Docker Compose, puertos documentados y variables externas.
+- CI/CD: `ci.yml`, `docker-ci.yml`, matrix, caché, concurrency, permissions mínimos, artefactos y delivery simulado.
+- Testing y calidad: 23 pruebas automatizadas, casos felices, casos de error, reports JUnit y ejecución en Actions.
+- Explicación técnica: README con problemática, modelo de datos, auth, Docker, CI/CD, testing y preguntas de defensa.
 
 ## Verificación
 
