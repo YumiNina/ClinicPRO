@@ -601,13 +601,13 @@ El pipeline garantiza que, antes de unir cambios a `main`, frontend y backend in
 
 Estado honesto para rubrica final:
 
-- URL publica frontend: `PENDIENTE DE CONFIGURAR`.
-- URL publica backend: `PENDIENTE DE CONFIGURAR`.
+- URL publica frontend: `https://clinicpro-frontend-sph9.onrender.com`.
+- URL publica backend: `https://clinicpro-backend-85ho.onrender.com`.
 - Plataforma preparada: Render mediante `render.yaml`.
 - Base de datos: Supabase PostgreSQL.
 - Demo final requerida: debe ejecutarse sobre una URL publica real, no solo local.
 
-El proyecto esta preparado para despliegue, pero no hay evidencia de una URL publica funcional ya creada en el repositorio. No se debe inventar una URL. Para completar el minimo obligatorio de la rubrica, crea los servicios en Render u otra plataforma compatible, carga las variables reales y actualiza este README con las URLs obtenidas.
+El proyecto ya tiene frontend y backend publicados en Render. El backend fue verificado con `/api/health` y el frontend responde `200` por HTTPS. Para cerrar la demo final, prueba manualmente el flujo principal de login, dashboards y citas desde la URL publica del frontend.
 
 Archivo de defensa final:
 
@@ -688,14 +688,14 @@ Health check:
 
 ```bash
 curl http://localhost:3001/api/health
-curl https://TU-BACKEND.onrender.com/api/health
+curl https://clinicpro-backend-85ho.onrender.com/api/health
 ```
 
 Deployment preparado en Render:
 
 - `render.yaml` define `clinicpro-backend` como servicio Node.
 - `render.yaml` define `clinicpro-frontend` como sitio static.
-- Backend build: `npm ci && npm run build`.
+- Backend build: `npm ci --include=dev && npm run build`.
 - Backend start: `npm run start`.
 - Frontend build: `cd frontend && npm ci && npm run build`.
 - Frontend publish path: `frontend/dist`.
@@ -1113,14 +1113,14 @@ Variables de configuracion para Render:
 
 ```txt
 NODE_ENV=production
-FRONTEND_URL=https://TU-FRONTEND.onrender.com
-ALLOWED_ORIGINS=https://TU-FRONTEND.onrender.com
+FRONTEND_URL=https://clinicpro-frontend-sph9.onrender.com
+ALLOWED_ORIGINS=https://clinicpro-frontend-sph9.onrender.com
 ACCESS_TOKEN_EXPIRES=15m
 REFRESH_TOKEN_EXPIRES=7d
-HISTORIAL_API_URL=https://TU-BACKEND.onrender.com/api
-VITE_API_AUTH=https://TU-BACKEND.onrender.com/api
-VITE_API_CITAS=https://TU-BACKEND.onrender.com/api
-VITE_API_HISTORIAL=https://TU-BACKEND.onrender.com/api
+HISTORIAL_API_URL=https://clinicpro-backend-85ho.onrender.com/api
+VITE_API_AUTH=https://clinicpro-backend-85ho.onrender.com/api
+VITE_API_CITAS=https://clinicpro-backend-85ho.onrender.com/api
+VITE_API_HISTORIAL=https://clinicpro-backend-85ho.onrender.com/api
 ```
 
 Secretos para configurar en Render, no en Git:
@@ -1154,7 +1154,7 @@ Pasos de despliegue:
 Verificacion post-deploy:
 
 ```bash
-curl https://TU-BACKEND.onrender.com/api/health
+curl https://clinicpro-backend-85ho.onrender.com/api/health
 ```
 
 Checklist post-deploy:

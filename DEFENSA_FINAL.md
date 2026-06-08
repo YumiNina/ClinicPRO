@@ -2,7 +2,7 @@
 
 Revision final preparada el 2026-06-07.
 
-Nota clave: no hay evidencia de una URL publica ya creada en el repositorio. El proyecto esta preparado para desplegarse con Render mediante `render.yaml`, pero la URL publica funcional requiere configuracion manual externa. No se inventa URL, credenciales ni deploy real.
+Nota clave: ya existe despliegue publico en Render. El backend fue verificado con `/api/health` y el frontend responde por HTTPS. No se inventan credenciales ni se documentan secretos reales.
 
 ## 1. Resumen del Proyecto
 
@@ -24,13 +24,13 @@ Usuario objetivo:
 
 | Punto | Estado | Evidencia | Archivo/carpeta | Lineas aproximadas | Que falta | Que debo configurar manualmente | Que mostrar en defensa |
 |---|---|---|---|---:|---|---|---|
-| Aplicacion desplegada en URL publica funcional | No cumple aun | No hay URL real versionada ni verificada | `render.yaml`, README | `render.yaml` 1-48 | Crear servicios cloud y obtener URLs | Crear Blueprint en Render o plataforma equivalente y cargar variables | Mostrar que no invento URL y que el proyecto esta preparado |
-| Build/despliegue automatizado o reproducible | Parcial | CI valida build/tests; Render blueprint define build/start | `.github/workflows/ci.yml`, `render.yaml` | CI 1-48, Render 1-48 | Conectar repo a plataforma y ejecutar deploy real | Configurar Render/GitHub integration y secrets | Mostrar workflows y `render.yaml` |
-| Demo sobre version desplegada | No cumple hasta deploy | Pendiente porque falta URL publica | README, este archivo | varios | Desplegar y probar flujo | Usar URL publica real despues del deploy | Abrir URL real, no localhost |
+| Aplicacion desplegada en URL publica funcional | Cumple | Frontend y backend Render responden por HTTPS | `render.yaml`, README | `render.yaml` 1-48 | Probar flujo completo de negocio | Mantener variables reales en Render | Abrir ambas URLs |
+| Build/despliegue automatizado o reproducible | Parcial-alto | CI valida build/tests; Render blueprint define build/start y servicios creados | `.github/workflows/ci.yml`, `render.yaml` | CI 1-48, Render 1-48 | Automatizar deploy final desde main si se requiere | Mantener GitHub/Render conectados | Mostrar workflows y deploy en Render |
+| Demo sobre version desplegada | Parcial | URLs publicas existen; falta validar flujo principal manualmente | README, este archivo | varios | Probar login, dashboards y citas en URL publica | Tener usuarios demo listos | Abrir URL real, no localhost |
 
-URL publica frontend: `PENDIENTE DE CONFIGURAR`.
+URL publica frontend: `https://clinicpro-frontend-sph9.onrender.com`.
 
-URL publica backend: `PENDIENTE DE CONFIGURAR`.
+URL publica backend: `https://clinicpro-backend-85ho.onrender.com`.
 
 Plataforma compatible preparada: Render, por `render.yaml`. Tambien podria adaptarse a Railway, Fly.io, Vercel/Netlify para frontend y Render/Railway/Fly para backend.
 
@@ -54,18 +54,18 @@ Flujo recomendado:
 | Elemento | Estado | Evidencia | Archivo/carpeta | Lineas aproximadas | Correccion necesaria |
 |---|---|---|---|---:|---|
 | Problema y valor | Cumple | README describe problema clinico | `README.md` | 9-33 | Ninguna |
-| Frontend funcional | Cumple local | React/Vite, rutas y paginas por rol | `frontend/src/app` | varios | Verificar en URL publica |
-| Backend funcional | Cumple local | Express API y rutas | `backend/src/server.ts`, `data.routes.ts` | 1-113, varios | Verificar en cloud |
-| API conectada | Cumple local | Axios usa `VITE_API_*` | `frontend/src/config/api-config.ts` | 1-4 | Configurar URLs publicas |
+| Frontend funcional | Cumple desplegado | React/Vite responde 200 en Render | `frontend/src/app` | varios | Probar flujo login/citas |
+| Backend funcional | Cumple desplegado | `/api/health` responde 200 en Render | `backend/src/server.ts`, `data.routes.ts` | 1-113, varios | Probar endpoints con flujo real |
+| API conectada | Parcial | Axios usa `VITE_API_*` apuntando al backend publico | `frontend/src/config/api-config.ts` | 1-4 | Verificar login desde frontend |
 | Base de datos | Parcial | Supabase env + schema SQL | `backend/src/config/supabase.ts`, `init-db.sql` | 1-10, varios | Configurar Supabase real |
 | Autenticacion | Cumple | bcrypt, JWT, refresh token | `auth.service.ts`, `jwt.ts` | 120-310, 10-40 | Cargar JWT secrets |
 | Autorizacion | Cumple | Middleware roles | `role.middleware.ts`, `data.routes.ts` | 8-45, varios | Pruebas en deploy |
 | Persistencia | Parcial | Supabase externo | `DATABASE_URL`, `SUPABASE_*` | `.env.example` | Configurar DB productiva |
 | Manejo de errores | Cumple basico | Error handler global | `error.middleware.ts` | 1-61 | Uniformar errores de proveedor a futuro |
 | Logs | Cumple basico | Logger estructurado | `logger.ts`, `observability.middleware.ts` | 1-81, 46-93 | Conectar a logs cloud reales |
-| Health check | Cumple | `GET /api/health` | `server.ts` | 79-85 | Probar en URL publica |
+| Health check | Cumple | `GET /api/health` publico verificado | `server.ts` | 79-85 | Ninguna |
 | Arquitectura explicable | Cumple | README + este archivo | `README.md`, `DEFENSA_FINAL.md` | varios | Ninguna |
-| URL publica | No cumple aun | No hay URL real | `render.yaml` | 1-48 | Desplegar |
+| URL publica | Cumple | Frontend y backend Render | `render.yaml` | 1-48 | Probar flujo principal |
 
 Respuestas clave:
 
@@ -302,7 +302,7 @@ Respuesta esperada:
 Comando:
 
 ```bash
-curl https://TU-BACKEND.onrender.com/api/health
+curl https://clinicpro-backend-85ho.onrender.com/api/health
 ```
 
 En local:
@@ -400,12 +400,12 @@ Evidencia:
 ## 20. Checklist Obligatorio de Demostracion
 
 Pregunta: 1. Cual es la URL publica?
-Respuesta recomendada: Actualmente esta pendiente de configurar. El proyecto esta preparado para Render con `render.yaml`; despues del deploy debo reemplazar `PENDIENTE DE CONFIGURAR` por las URLs reales.
+Respuesta recomendada: Frontend `https://clinicpro-frontend-sph9.onrender.com` y backend `https://clinicpro-backend-85ho.onrender.com`. El backend se verifica con `/api/health`.
 Donde señalar en el proyecto: Render blueprint y README.
 Archivo: `render.yaml`, `README.md`, `DEFENSA_FINAL.md`.
 Lineas aproximadas: `render.yaml` 1-48.
 Que mostrar durante la demo: si ya desplegaste, abrir la URL real; si no, mostrar pendiente honestamente.
-Que configurar manualmente si aplica: servicios Render frontend/backend y variables.
+Que configurar manualmente si aplica: mantener variables Render actualizadas y usuarios demo.
 
 Pregunta: 2. Que comando construye la aplicacion?
 Respuesta recomendada: Backend `npm run build` en `backend/`; frontend `npm run build` en `frontend/`.
@@ -456,7 +456,7 @@ Que mostrar durante la demo: log con `requestId`.
 Que configurar manualmente si aplica: acceso al panel de Render.
 
 Pregunta: 8. Como verificamos que la app quedo saludable despues del despliegue?
-Respuesta recomendada: Ejecutando `curl https://TU-BACKEND/api/health` y revisando que devuelva `status: ok`, `uptime`, `timestamp`, `environment`.
+Respuesta recomendada: Ejecutando `curl https://clinicpro-backend-85ho.onrender.com/api/health` y revisando que devuelva `status: ok`, `uptime`, `timestamp`, `environment`.
 Donde señalar en el proyecto: health endpoint.
 Archivo: `backend/src/server.ts`.
 Lineas aproximadas: 79-85.
@@ -617,18 +617,18 @@ Que señalar durante la defensa: pendientes honestos.
 
 | Requisito de Rubrica Final | Cumple | Parcial | No cumple | Evidencia | Correccion hecha | Falta configurar manualmente |
 |---|---|---|---|---|---|---|
-| URL publica funcional |  |  | X | No hay URL real | Proyecto preparado con Render | Crear servicios y URL |
-| Demo sobre version desplegada |  |  | X | Falta URL | Guia creada | Ejecutar deploy real |
+| URL publica funcional | X |  |  | Frontend/backend Render | URLs agregadas | Ninguno |
+| Demo sobre version desplegada |  | X |  | URLs publicas existen | Guia creada | Probar flujo principal y tener usuarios demo |
 | Build automatizado | X |  |  | GitHub Actions | CI existente/audit | Ninguno |
-| Deploy automatizado |  | X |  | delivery simulation + render blueprint | Documentado | Conectar plataforma |
-| Flujo principal funcional |  | X |  | Front/back/routes | Documentado | Probar en deploy |
+| Deploy automatizado |  | X |  | delivery simulation + Render blueprint | Servicios creados en Render | Automatizar deploy final desde main si se requiere |
+| Flujo principal funcional |  | X |  | Front/back/routes | Documentado | Probar login/citas en deploy |
 | Frontend | X |  |  | `frontend/` build/tests | Ninguna | Configurar `VITE_*` |
 | Backend | X |  |  | `backend/` build/tests | Ninguna | Configurar env |
 | Base de datos |  | X |  | Supabase config/schema | Docs | Supabase real |
 | Autenticacion | X |  |  | auth module | Ninguna | JWT secrets |
 | Persistencia |  | X |  | Supabase externo | Docs | DB productiva |
 | Logs | X |  |  | logger | Week 16 | Logs cloud |
-| Health check | X |  |  | `/api/health` | Implementado | Probar URL cloud |
+| Health check | X |  |  | `/api/health` publico | Verificado en Render | Ninguno |
 | Variables entorno | X |  |  | env examples | `.env.example` raiz | Cargar valores reales |
 | Secretos fuera repo | X |  |  | `.gitignore`, placeholders | Docs | Secret manager/cloud |
 | README completo | X |  |  | README | Actualizado | Agregar URL real |
@@ -710,7 +710,7 @@ Donde ejecutarlo: raiz con backend local.
 Para que sirve: probar health.
 Resultado esperado: `status: ok`.
 
-Comando: `curl https://TU-BACKEND.onrender.com/api/health`
+Comando: `curl https://clinicpro-backend-85ho.onrender.com/api/health`
 Donde ejecutarlo: terminal.
 Para que sirve: verificar deploy.
 Resultado esperado: `status: ok`.
@@ -777,26 +777,24 @@ Cumple completamente:
 
 Cumple parcialmente:
 
-- Deploy publico: preparado con Render, falta crearlo.
+- Deploy publico: creado en Render.
 - Persistencia: Supabase preparado, requiere credenciales reales.
 - Demo final: lista como guia, pero debe ejecutarse sobre URL real.
 
 No cumple aun:
 
-- URL publica funcional verificada.
-- Demo sobre version desplegada.
-- Deploy real automatico de punta a punta.
+- Demo completa de login/citas sobre version desplegada hasta probarla manualmente.
+- Deploy real automatico de punta a punta desde `main` si se exige como produccion formal.
 
 Puntaje estimado sobre 100:
 
-- Con URL publica configurada y smoke test post-deploy: 85-92.
-- Sin URL publica real: 65-75, porque los minimos obligatorios de despliegue/demo quedan incompletos.
+- Con URL publica configurada y health verificado: 85-92.
+- Si el flujo login/citas falla durante demo: 75-82 hasta corregir variables, datos demo o CORS.
 
 Que arreglar primero:
 
-1. Crear servicios en Render con `render.yaml`.
-2. Cargar variables reales.
-3. Configurar `VITE_API_*` con URL backend real.
-4. Probar `/api/health` publico.
-5. Hacer login y flujo cita en URL publica.
-6. Actualizar README/DEFENSA_FINAL con URLs reales.
+1. Verificar que `VITE_API_*` del frontend apunten a `https://clinicpro-backend-85ho.onrender.com/api`.
+2. Verificar que `FRONTEND_URL` y `ALLOWED_ORIGINS` del backend apunten a `https://clinicpro-frontend-sph9.onrender.com`.
+3. Redeploy frontend si cambiaste variables `VITE_*`.
+4. Hacer login y flujo cita en URL publica.
+5. Preparar usuarios demo y contrasenas privadas.
