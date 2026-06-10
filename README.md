@@ -397,6 +397,8 @@ Después de que Supabase devuelve el usuario de Google, Clinic Pro valida el cor
 
 ```txt
 POST /api/auth/google/session
+
+Nota de prueba: PR de prueba 7 — validación de flujo y permisos.
 ```
 
 Reglas del flujo:
