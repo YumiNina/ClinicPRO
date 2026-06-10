@@ -1,22 +1,9 @@
 name: Dockerized CI
 
 on:
-  pull_request:
-    paths:
-      - frontend/**
-      - backend/**
-      - .github/workflows/**
-      - docker-compose.yml
-      - README.md
   push:
     branches:
       - main
-    paths:
-      - frontend/**
-      - backend/**
-      - .github/workflows/**
-      - docker-compose.yml
-      - README.md
   workflow_dispatch:
 
 permissions:
