@@ -75,7 +75,9 @@ Los pacientes no tienen usuario de ingreso propio. En Clinic Pro, los pacientes 
 
 ## Funcionalidades Implementadas
 
-El proyecto ya cuenta con una primera versión funcional de frontend, backend, base de datos, control de sesión, CI/CD, Docker y pruebas automatizadas. La implementación actual prioriza seguridad de acceso, separación por roles, flujo de login, gestión clínica básica y evidencia técnica para defensa académica/profesional.
+ El proyecto ya cuenta con una primera versión funcional de frontend, backend, base de datos, control de sesión, CI/CD, Docker y pruebas automatizadas. La implementación actual prioriza seguridad de acceso, separación por roles, flujo de login, gestión clínica básica y evidencia técnica para defensa académica/profesional.
+ 
+ Nota de prueba: PR de prueba 9 — comprobación final del README antes de entrega.
 
 Autenticación:
 - Registro con validación Zod.
