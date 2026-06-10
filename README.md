@@ -1430,3 +1430,11 @@ cd frontend && npm run check
 Desarrollado por **Mayumi Nina**.
 
 Proyecto académico y profesional de gestión clínica moderna.
+
+Resumen de cambios de prueba (PRs 1-10):
+
+- Se conservó `DEFENSA_FINAL.md` como documento final.
+- Se propusieron eliminaciones de archivos auxiliares: `DEFENSA_TERRAFORM.md`, `DEFENSA_MONITORING.md`, `DEFENSA.md` (PRs 1-3).
+- Se añadieron varias notas de prueba en el README para validar creación de PRs (PRs 4-10).
+
+Si deseas que aplique y fusione estos PRs o mueva los .md eliminados a una carpeta `archive/` en lugar de borrarlos, indícamelo y lo hago.
