@@ -775,7 +775,7 @@ Evidencia para defensa:
 - Descargar artefactos JUnit generados por el pipeline.
 - Explicar que los tests cubren reglas de negocio, errores comunes y control de acceso antes de permitir merge a `main`.
 
-## Defensa Técnica
+## Demostración Técnica
 
 Clinic Pro puede demostrarse en una demo individual de 15 a 20 minutos siguiendo este orden:
 
@@ -786,44 +786,17 @@ Clinic Pro puede demostrarse en una demo individual de 15 a 20 minutos siguiendo
 5. Mostrar que cada rol entra a una ruta distinta y que no puede acceder a paneles ajenos.
 6. Crear o consultar pacientes, citas, médicos y clínicas.
 7. Mostrar que la información se guarda y se recupera desde Supabase.
-8. Ejecutar `npm test` en frontend y backend.
-9. Abrir GitHub Actions y mostrar `CI Pipeline` y `Dockerized CI`.
-10. Descargar un artefacto de build o reporte JUnit.
+8. Ejecutar `npm test` en frontend y backend para ver reportes de cobertura.
+9. Abrir GitHub Actions y mostrar que `CI Pipeline` valida cada PR y `Dockerized CI` ejecuta solo en pushes a `main`.
+10. Descargar un artefacto de build o reporte JUnit para evidencia.
 
-Relación entre las partes del sistema:
+Arquitectura y componentes clave:
 
 - Base de datos: Supabase PostgreSQL centraliza usuarios, sesiones, pacientes, citas, médicos, clínicas y consultas.
 - Autenticación: Express valida credenciales, genera JWT y protege endpoints; React guarda sesión y redirige por rol.
 - Docker: reproduce frontend y backend en contenedores separados, con puertos y variables controladas.
-- CI/CD: GitHub Actions instala dependencias, ejecuta lint, tests, build y genera artefactos antes de entregar.
+- CI/CD: GitHub Actions con `CI Pipeline` para validar PRs en todas las ramas y `Dockerized CI` para construir imágenes en pushes a `main`. Node.js 22 optimizado, workflows sin path filters para cobertura total, matrix único para evitar duplicidad.
 - Testing: Vitest valida reglas importantes para reducir regresiones en login, roles, formularios y rutas protegidas.
-
-Preguntas posibles de defensa:
-
-- ¿Por qué no existe login de paciente?
-  - Porque el alcance actual es un sistema interno para clínica. Los pacientes son registros gestionados por personal autorizado.
-- ¿Dónde se guardan las credenciales?
-  - Las contraseñas se guardan hasheadas con bcrypt en `usuarios.password_hash`. Los secretos reales van en `.env` y no se suben al repositorio.
-- ¿Cómo se protege una ruta?
-  - En frontend se usa `ProtectedRoute` y `RoleProtectedRoute`; en backend se usa `authMiddleware` y `authorizeRoles`.
-- ¿Qué pasa si expira el access token?
-  - Axios detecta el `401`, llama a `/api/auth/refresh`, guarda nuevos tokens y reintenta la solicitud.
-- ¿Cómo se demuestra que los datos se guardan?
-  - Creando datos desde la interfaz o endpoints, verificando la respuesta del backend y consultando las tablas en Supabase.
-- ¿Qué garantiza el pipeline?
-  - Que antes de aceptar cambios se instalen dependencias, pasen lint, tests, build y se generen artefactos.
-- ¿Por qué usar Docker?
-  - Para reproducir el entorno de frontend y backend de manera controlada sin depender de la configuración local de cada equipo.
-- ¿Qué pruebas son más importantes?
-  - Las de autenticación, roles, validaciones y rutas protegidas, porque evitan accesos incorrectos y datos inválidos.
-
-Checklist de rúbrica Semanas 9-14:
-
-- Base de datos y autenticación: Supabase conectado, auth JWT, refresh tokens, rutas protegidas, variables de entorno y validaciones Zod.
-- Dockerización y ejecución: Dockerfile por servicio, `.dockerignore`, Docker Compose, puertos documentados y variables externas.
-- CI/CD: `ci.yml`, `docker-ci.yml`, matrix, caché, concurrency, permissions mínimos, artefactos y delivery simulado.
-- Testing y calidad: 23 pruebas automatizadas, casos felices, casos de error, reports JUnit y ejecución en Actions.
-- Explicación técnica: README con problemática, modelo de datos, auth, Docker, CI/CD, testing y preguntas de defensa.
 
 ## Verificación
 
