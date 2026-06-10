@@ -5,6 +5,7 @@ Sistema de gestión clínica y administrativa desarrollado con React, Express, T
 Clinic Pro incluye autenticación JWT, roles, gestión de citas, datos clínicos, paneles por perfil y conexión con Supabase.
 
 Nota de Pull Request: cambio como prueba para validar el flujo de revisión y CI/CD.
+Nota de prueba: PR de prueba 6 — prueba continua de creación de PRs.
 
 ## Problemática
 
