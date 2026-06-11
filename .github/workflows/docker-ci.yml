@@ -215,26 +215,40 @@ jobs:
     environment: production
 
     steps:
-      - name: Ensure Render deploy hook is configured
+      - name: Verify Render deploy hooks are configured
         run: |
-          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
-            echo "ERROR: RENDER_DEPLOY_HOOK_URL secret is required to trigger a real Render deployment."
-            echo "Create a Render Deploy Hook and add it as repository secret RENDER_DEPLOY_HOOK_URL."
+          missing_secrets=()
+          [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL_FRONTEND }}" ] && missing_secrets+=("RENDER_DEPLOY_HOOK_URL_FRONTEND")
+          [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL_BACKEND }}" ] && missing_secrets+=("RENDER_DEPLOY_HOOK_URL_BACKEND")
+          if [ ${#missing_secrets[@]} -gt 0 ]; then
+            echo "ERROR: The following secrets are required to trigger Render deployments:"
+            for secret in "${missing_secrets[@]}"; do
+              echo "  - $secret"
+            done
+            echo "Create Render Deploy Hooks and add them as repository secrets."
             exit 1
           fi
 
-      - name: Trigger Render deployment
+      - name: Trigger frontend deployment on Render
         run: |
-          echo "Triggering Render deployment for commit ${GITHUB_SHA} on ${GITHUB_REF}"
-          payload="{\"commit\":\"${GITHUB_SHA}\",\"ref\":\"${GITHUB_REF}\",\"repository\":\"${GITHUB_REPOSITORY}\"}"
-          response="$(curl -sSL -w '\n%{http_code}' -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" \
+          echo "Triggering Render frontend deployment for commit ${GITHUB_SHA}"
+          payload="{\"commit\":\"${GITHUB_SHA}\",\"ref\":\"${GITHUB_REF}\",\"service\":\"frontend\",\"repository\":\"${GITHUB_REPOSITORY}\"}"
+          response="$(curl -sSL -w '\n%{http_code}' -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL_FRONTEND }}" \
             -H 'Content-Type: application/json' \
             --data "$payload")"
           status="$(echo "$response" | tail -n1)"
           body="$(echo "$response" | sed '$d')"
-          echo "Render response status: $status"
-          echo "$body"
-          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
-            echo "Render deploy webhook failed with status $status"
-            exit 1
-          fi
+          echo "Frontend Render response: HTTP $status"
+          [ $((status)) -lt 200 ] || [ $((status)) -ge 300 ] && echo "$body" && exit 1 || echo "Frontend deploy triggered successfully"
+
+      - name: Trigger backend deployment on Render
+        run: |
+          echo "Triggering Render backend deployment for commit ${GITHUB_SHA}"
+          payload="{\"commit\":\"${GITHUB_SHA}\",\"ref\":\"${GITHUB_REF}\",\"service\":\"backend\",\"repository\":\"${GITHUB_REPOSITORY}\"}"
+          response="$(curl -sSL -w '\n%{http_code}' -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL_BACKEND }}" \
+            -H 'Content-Type: application/json' \
+            --data "$payload")"
+          status="$(echo "$response" | tail -n1)"
+          body="$(echo "$response" | sed '$d')"
+          echo "Backend Render response: HTTP $status"
+          [ $((status)) -lt 200 ] || [ $((status)) -ge 300 ] && echo "$body" && exit 1 || echo "Backend deploy triggered successfully"
