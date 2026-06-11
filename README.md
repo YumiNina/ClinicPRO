@@ -143,8 +143,8 @@ OAuth:
 CI/CD y calidad:
 - Workflow principal `CI Pipeline` para Pull Requests, push a `main` y ejecución manual.
 - Workflow reutilizable para validar frontend y backend con matriz de Node.js.
-- Workflow `Dockerized CI` para construir imágenes Docker y simular entrega controlada.
-- Jobs separados para validación, construcción de imagen y delivery/deploy simulado.
+- Workflow `Dockerized CI` para construir imágenes Docker, publicar artefactos y disparar despliegues reales mediante webhooks de Render.
+- Jobs separados para validación, construcción de imagen y deploy usando hooks de Render.
 - Caché de dependencias npm y caché Docker Buildx.
 - Artefactos de build, reportes JUnit y evidencia de imágenes Docker.
 - Permisos mínimos para `GITHUB_TOKEN`.
@@ -629,7 +629,7 @@ Jobs del workflow Docker:
 
 - `validate`: corre dentro de `node:20-alpine`, instala dependencias con `npm ci`, ejecuta lint, tests y build para frontend y backend.
 - `build-image`: depende de `validate`, configura Docker Buildx, construye imágenes Docker y usa caché GitHub Actions.
-- `deploy-simulation`: depende de `build-image`, usa `environment: production` y simula la promoción de imágenes sin desplegar en un servidor real.
+- `deploy`: depende de `build-image`, usa `environment: production` y dispara despliegues reales a Render usando los webhooks configurados como secrets en GitHub.
 
 Patrones aplicados:
 
@@ -637,7 +637,7 @@ Patrones aplicados:
 - Service container: se levanta `postgres:16` con health check `pg_isready`, variables de prueba y `DATABASE_URL` de CI.
 - Build and push image: `docker/build-push-action` construye imágenes de frontend y backend.
 - Caché Docker: `cache-from: type=gha` y `cache-to: type=gha,mode=max`.
-- Build once, promote: `build-image` crea las imágenes una vez y expone sus nombres como outputs; `deploy-simulation` usa esos outputs.
+- Build once, promote: `build-image` crea las imágenes una vez y expone sus nombres como outputs; `deploy` usa esos outputs para disparar los webhooks de Render.
 - Separación de responsabilidades: validar, construir imagen y entregar están en jobs separados con `needs`.
 - Permisos mínimos: el workflow tiene `contents: read`; solo `build-image` agrega `packages: write` para GHCR.
 
@@ -679,7 +679,7 @@ Evidencia generada:
 - Artefacto `dockerized-validation-builds` con `frontend/dist` y `backend/dist`.
 - Artefacto `docker-image-evidence` con los nombres de imagen y commit SHA.
 - Logs de Buildx mostrando uso de caché Docker y construcción de imágenes.
-- Job `deploy-simulation` mostrando qué imágenes se promoverían a producción.
+- Job `deploy` mostrando qué webhooks de Render se disparan para producción.
 
 Seguridad avanzada:
 
@@ -822,7 +822,7 @@ Checklist de rúbrica Semanas 9-14:
 
 - Base de datos y autenticación: Supabase conectado, auth JWT, refresh tokens, rutas protegidas, variables de entorno y validaciones Zod.
 - Dockerización y ejecución: Dockerfile por servicio, `.dockerignore`, Docker Compose, puertos documentados y variables externas.
-- CI/CD: `ci.yml`, `docker-ci.yml`, matrix, caché, concurrency, permissions mínimos, artefactos y delivery simulado.
+- CI/CD: `ci.yml`, `docker-ci.yml`, matrix, caché, concurrency, permissions mínimos, artefactos y deploy real a Render mediante webhook.
 - Testing y calidad: 23 pruebas automatizadas, casos felices, casos de error, reports JUnit y ejecución en Actions.
 - Explicación técnica: README con problemática, modelo de datos, auth, Docker, CI/CD, testing y preguntas de defensa.
 
