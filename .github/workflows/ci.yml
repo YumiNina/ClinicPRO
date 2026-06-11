@@ -47,4 +47,5 @@ jobs:
         run: |
           echo "Validation succeeded for frontend and backend."
           echo "Build artifacts were generated and uploaded."
-          echo "Production delivery is intentionally simulated for this academic pipeline."
+          echo "This workflow performs validation only and does not execute production deployment."
+          echo "Actual Render deployment is handled by the dockerized CI workflow using a Render deploy hook."
