@@ -20,6 +20,7 @@ El objetivo principal es construir una plataforma clínica moderna, segura y pre
 - Registrar pacientes, médicos, clínicas, citas y consultas.
 - Mantener una base de datos centralizada en Supabase PostgreSQL.
 - Automatizar validaciones, builds, pruebas y generación de artefactos con GitHub Actions.
+- Despliegue real a Render vía webhook cuando se configura el secreto `RENDER_DEPLOY_HOOK_URL`.
 - Ejecutar el proyecto de forma reproducible con Docker y Docker Compose.
 
 El sistema no está pensado como portal público para pacientes. En esta versión, los pacientes son registros clínicos administrados por personal autorizado; los únicos roles con acceso al sistema son `admin`, `medico` y `recepcionista`.
