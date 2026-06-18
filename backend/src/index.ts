@@ -5,6 +5,7 @@ import express, { type Express, type Request, type Response } from 'express';
 import { authRoutes } from './modules/auth/index.js';
 import { AppDataSource } from './config/database.js';
 import { authMiddleware } from "./middleware/auth.middleware";
+import { logger } from './utils/logger';
 
 dotenv.config();
 
@@ -50,9 +51,9 @@ export const createApp = (): Express => {
 export const initializeDatabase = async (): Promise<void> => {
   try {
     await AppDataSource.initialize();
-    console.log('✅ Database connection established');
+    logger.info('database.connection_established');
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    logger.error('database.initialization_failed', { error });
     throw error;
   }
 };
