@@ -21,6 +21,7 @@ export interface IDoctor {
   ci?: string;
   email?: string;
   telefono?: string;
+  especialidad_id?: string;
   especialidad?: string;
   licencia_medica?: string;
   clinica_id?: string;
@@ -48,6 +49,7 @@ export interface ICita {
   paciente_id: string;
   medico_id: string;
   clinica_id: string;
+  especialidad_id?: string;
   especialidad: string;
   fecha: string;
   hora: string;

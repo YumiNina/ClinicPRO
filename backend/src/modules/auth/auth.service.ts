@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { createHash } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 
 import { supabase } from '../../config/supabase';
@@ -24,6 +25,8 @@ type AuthUserRow = {
 };
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
+const hashRefreshToken = (token: string) =>
+  createHash('sha256').update(token).digest('hex');
 
 const findUserByEmail = async (email: string, columns = 'id') => {
   const normalizedEmail = normalizeEmail(email);
@@ -60,7 +63,7 @@ const createSessionForUser = async (user: AuthUserRow) => {
   await supabase.from('sesiones').insert({
     id: uuidv4(),
     usuario_id: user.id,
-    token_refresco: refreshToken,
+    token_refresco_hash: hashRefreshToken(refreshToken),
     expira_en: expiresAt.toISOString(),
     revocado: false,
   });
@@ -248,7 +251,7 @@ export const authService = {
     const { data: session } = await supabase
       .from('sesiones')
       .select('*')
-      .eq('token_refresco', oldRefreshToken)
+      .eq('token_refresco_hash', hashRefreshToken(oldRefreshToken))
       .eq('revocado', false)
       .maybeSingle();
 
@@ -280,7 +283,7 @@ export const authService = {
     await supabase.from('sesiones').insert({
       id: uuidv4(),
       usuario_id: decoded.id,
-      token_refresco: refreshToken,
+      token_refresco_hash: hashRefreshToken(refreshToken),
       expira_en: expiresAt.toISOString(),
       revocado: false,
     });
@@ -295,7 +298,7 @@ export const authService = {
     await supabase
       .from('sesiones')
       .update({ revocado: true })
-      .eq('token_refresco', refreshToken);
+      .eq('token_refresco_hash', hashRefreshToken(refreshToken));
 
     return true;
   },
