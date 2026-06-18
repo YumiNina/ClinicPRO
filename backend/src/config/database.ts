@@ -7,8 +7,8 @@ dotenv.config();
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
-  synchronize: true, // ¡En producción cambia a false y usa migraciones!
-  logging: true, // Lo cambié a true momentáneamente para ver el ciclo de vida de la conexión
+  synchronize: false,
+  logging: false,
   entities: [Cita],
   subscribers: [],
   migrations: [],

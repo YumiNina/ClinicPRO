@@ -7,6 +7,7 @@
 		"dev": "vite",
 		"build": "vite build",
 		"preview": "vite preview",
+		"audit": "npm audit --audit-level=high",
 		"prepare": "husky",
 		"biome:check": "biome check .",
 		"biome:write": "biome check --write .",
