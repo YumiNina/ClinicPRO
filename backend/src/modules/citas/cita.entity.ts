@@ -19,24 +19,22 @@ export class Cita {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column('varchar')
+  @Column('uuid')
   paciente_id!: string;
 
-  @Column('varchar')
+  @Column('uuid')
   medico_id!: string;
 
-  @Column('varchar')
+  @Column('uuid')
   clinica_id!: string;
 
-  @Column({ type: 'varchar' })
-  especialidad!: string;
+  @Column('uuid')
+  especialidad_id!: string;
 
-  // Formato YYYY-MM-DD
-  @Column({ type: 'varchar', length: 10 })
+  @Column({ type: 'date' })
   fecha!: string;
 
-  // Formato HH:mm
-  @Column({ type: 'varchar', length: 5 })
+  @Column({ type: 'time' })
   hora!: string;
 
   @Column({ type: 'text', nullable: true })

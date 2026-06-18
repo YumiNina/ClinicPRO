@@ -47,11 +47,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run dependency audit
+        run: npm run audit --if-present
+
       - name: Run quality checks
         run: npm run lint --if-present
 
       - name: Run tests
         run: npm test
+
+      - name: Run smoke tests
+        run: npm run test:smoke --if-present
 
       - name: Upload test report
         if: always()
