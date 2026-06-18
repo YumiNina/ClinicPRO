@@ -6,6 +6,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "lint": "tsc --noEmit",
+    "audit": "npm audit --audit-level=high",
     "test": "mkdir -p reports && vitest run --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml",
     "test:coverage": "vitest run --coverage",
     "test:smoke": "node scripts/ci-smoke-test.js",

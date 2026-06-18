@@ -2,9 +2,11 @@ import { Router, type Response } from 'express';
 import { authService } from '../auth/auth.service';
 import type { AuthRequest } from '../../middleware/auth.middleware';
 import { authorizeRoles } from '../../middleware/role.middleware';
+import { validateUuidParam } from '../../middleware/security.middleware';
 import { supabase } from '../../config/supabase';
 
 const router = Router();
+router.param('id', validateUuidParam('id'));
 
 const allowedTables = {
   pacientes: 'pacientes',
@@ -14,6 +16,13 @@ const allowedTables = {
   logs: 'logs',
 } as const;
 
+const doctorSelect: string =
+  'id,usuario_id,nombre_completo,ci,email,telefono,especialidad_id,licencia_medica,clinica_id,horario,activo,created_at,updated_at,especialidades(nombre)';
+const appointmentSelect: string =
+  'id,paciente_id,medico_id,clinica_id,especialidad_id,fecha,hora,fecha_hora,motivo,estado,notas_doctor,created_at,updated_at,especialidades(nombre)';
+const medicalHistorySelect: string =
+  'id,paciente_id,medico_id,diagnostico,severidad,descripcion,tratamiento,proxima_cita,proxima_cita_id,created_at,updated_at,medicos(nombre_completo)';
+
 type AllowedTable = keyof typeof allowedTables;
 type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'absent';
 type UserRole = 'admin' | 'medico' | 'recepcionista';
@@ -22,11 +31,22 @@ const userRoles: UserRole[] = ['admin', 'medico', 'recepcionista'];
 const lettersRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s.'-]+$/;
 const digitsRegex = /^\d+$/;
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const licenseRegex = /^[A-Za-z0-9-]{4,30}$/;
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 const timeRangeRegex = /^([01]?\d|2[0-3]):[0-5]\d\s*-\s*([01]?\d|2[0-3]):[0-5]\d$/;
 
 type AnyPayload = Record<string, unknown>;
+type MappedAppointment = AnyPayload & {
+  estado: AppointmentStatus;
+  fecha: string;
+  hora: string;
+  especialidad: string;
+};
+type MappedMedicalHistory = AnyPayload & {
+  proxima_cita: string;
+  medico_encargado: string;
+};
 
 const normalizeValue = (value: unknown) => String(value ?? '').trim();
 const normalizeEmail = (value: unknown) => normalizeValue(value).toLowerCase();
@@ -47,6 +67,7 @@ const isDigits = (value: unknown, minLength = 5, maxLength = 15) => {
 };
 const isPhone = (value: unknown) => isDigits(value, 7, 12);
 const isEmail = (value: unknown) => emailRegex.test(normalizeValue(value));
+const isUuid = (value: unknown) => uuidRegex.test(normalizeValue(value));
 const isDateNotFuture = (value: unknown) => {
   const normalized = normalizeValue(value);
   return isIsoDate(normalized) && normalized <= todayIso();
@@ -98,12 +119,52 @@ const toAppAppointmentStatus = (value: unknown) => {
   const normalized = normalizeValue(value);
   return dbToAppAppointmentStatus[normalized] || (normalized as AppointmentStatus);
 };
-const mapCitaFromDb = <T extends { estado?: unknown }>(appointment: T) => ({
+const getNestedName = (value: unknown, key = 'nombre') =>
+  typeof value === 'object' && value !== null
+    ? normalizeValue((value as Record<string, unknown>)[key])
+    : '';
+const normalizeDateFromDb = (value: unknown) => {
+  const normalized = normalizeValue(value);
+  return normalized.length >= 10 ? normalized.slice(0, 10) : normalized;
+};
+const normalizeTimeFromDb = (value: unknown) => {
+  const normalized = normalizeValue(value);
+  return normalized.length >= 5 ? normalized.slice(0, 5) : normalized;
+};
+const asPayloadArray = (value: unknown): AnyPayload[] =>
+  Array.isArray(value) ? (value as AnyPayload[]) : [];
+const asPayload = (value: unknown): AnyPayload => (value || {}) as AnyPayload;
+const mapCitaFromDb = (appointment: AnyPayload): MappedAppointment => ({
   ...appointment,
   estado: toAppAppointmentStatus(appointment.estado),
+  fecha: normalizeDateFromDb(appointment.fecha),
+  hora: normalizeTimeFromDb(appointment.hora),
+  especialidad:
+    getNestedName(appointment.especialidades) ||
+    normalizeValue(appointment.especialidad) ||
+    normalizeValue(appointment.especialidad_id),
 });
-const mapCitasFromDb = <T extends { estado?: unknown }>(appointments: T[] = []) =>
-  appointments.map(mapCitaFromDb);
+const mapCitasFromDb = (appointments: unknown): MappedAppointment[] =>
+  asPayloadArray(appointments).map(mapCitaFromDb);
+const mapDoctorFromDb = (doctor: AnyPayload) => ({
+  ...doctor,
+  especialidad:
+    getNestedName(doctor.especialidades) ||
+    normalizeValue(doctor.especialidad) ||
+    normalizeValue(doctor.especialidad_id),
+});
+const mapDoctorsFromDb = (doctors: unknown) =>
+  asPayloadArray(doctors).map(mapDoctorFromDb);
+const mapMedicalHistoryFromDb = (history: AnyPayload): MappedMedicalHistory => ({
+  ...history,
+  proxima_cita: normalizeDateFromDb(history.proxima_cita),
+  medico_encargado:
+    getNestedName(history.medicos, 'nombre_completo') ||
+    normalizeValue(history.medico_encargado) ||
+    normalizeValue(history.medico_id),
+});
+const mapMedicalHistoriesFromDb = (histories: unknown) =>
+  asPayloadArray(histories).map(mapMedicalHistoryFromDb);
 const asArray = <T>(value: T[] | null | undefined) => value || [];
 const getDoctorIdsForUser = async (userId: string, email?: string) => {
   const doctorIds = new Set([normalizeValue(userId)]);
@@ -133,6 +194,76 @@ const getDoctorIdsForUser = async (userId: string, email?: string) => {
   return Array.from(doctorIds).filter(Boolean);
 };
 
+const resolveDoctorIdForAppointment = async (doctorId: unknown) => {
+  const normalizedDoctorId = normalizeValue(doctorId);
+
+  if (!normalizedDoctorId) return null;
+
+  if (isUuid(normalizedDoctorId)) {
+    const { data: doctorById } = await supabase
+      .from('medicos')
+      .select('id')
+      .eq('id', normalizedDoctorId)
+      .maybeSingle();
+
+    if (doctorById?.id) return normalizeValue(doctorById.id);
+
+    const { data: doctorByUserId } = await supabase
+      .from('medicos')
+      .select('id')
+      .eq('usuario_id', normalizedDoctorId)
+      .maybeSingle();
+
+    if (doctorByUserId?.id) return normalizeValue(doctorByUserId.id);
+  }
+
+  return null;
+};
+
+const resolveSpecialtyId = async (specialty: unknown, doctorId?: unknown) => {
+  const normalizedSpecialty = normalizeValue(specialty);
+
+  if (normalizedSpecialty) {
+    if (isUuid(normalizedSpecialty)) {
+      const { data: specialtyById } = await supabase
+        .from('especialidades')
+        .select('id')
+        .eq('id', normalizedSpecialty)
+        .maybeSingle();
+
+      if (specialtyById?.id) return normalizeValue(specialtyById.id);
+    }
+
+    const { data: specialtyByName } = await supabase
+      .from('especialidades')
+      .select('id')
+      .ilike('nombre', normalizedSpecialty)
+      .maybeSingle();
+
+    if (specialtyByName?.id) return normalizeValue(specialtyByName.id);
+  }
+
+  const normalizedDoctorId = normalizeValue(doctorId);
+
+  if (normalizedDoctorId) {
+    const { data: doctor } = await supabase
+      .from('medicos')
+      .select('especialidad_id')
+      .eq('id', normalizedDoctorId)
+      .maybeSingle();
+
+    if (doctor?.especialidad_id) return normalizeValue(doctor.especialidad_id);
+  }
+
+  const { data: defaultSpecialty } = await supabase
+    .from('especialidades')
+    .select('id')
+    .ilike('nombre', 'Medicina General')
+    .maybeSingle();
+
+  return defaultSpecialty?.id ? normalizeValue(defaultSpecialty.id) : null;
+};
+
 const formatDateTime = (value?: unknown) => {
   const dateValue = normalizeValue(value);
   if (!dateValue) return new Date(0).getTime();
@@ -155,7 +286,7 @@ const getDoctorLabel = (doctor: AnyPayload | undefined, fallback: unknown) =>
 const getClinicLabel = (clinic: AnyPayload | undefined, fallback: unknown) =>
   normalizeValue(clinic?.nombre || fallback || 'Clínica sin nombre');
 
-const buildLookup = <T extends { id?: unknown }>(items: T[]) =>
+const buildLookup = (items: AnyPayload[]) =>
   new Map(items.map((item) => [normalizeValue(item.id), item]));
 
 const buildActivity = (
@@ -302,7 +433,10 @@ const validateMedicoPayload = (body: AnyPayload, partial = false) => {
     return 'El teléfono del médico debe contener solo números, entre 7 y 12 dígitos';
   }
 
-  if ((!partial || body.especialidad !== undefined) && normalizeValue(body.especialidad).length < 3) {
+  if (
+    (!partial || body.especialidad !== undefined || body.especialidad_id !== undefined) &&
+    !normalizeValue(body.especialidad_id || body.especialidad)
+  ) {
     return 'Selecciona una especialidad válida';
   }
 
@@ -331,26 +465,22 @@ const pickPayload = (body: AnyPayload, fields: string[]) =>
   );
 
 const normalizePacientePayload = (body: AnyPayload) =>
-  ({
-    ...pickPayload(body, [
-      'usuario_id',
-      'nombre_completo',
-      'ci',
-      'telefono',
-      'email',
-      'fecha_nacimiento',
-      'direccion',
-    ]),
-    ...(body.nombre_completo !== undefined ? { nombre_apellido: body.nombre_completo } : {}),
-    ...(body.ci !== undefined ? { dni_nie: body.ci } : {}),
-  });
+  pickPayload(body, [
+    'usuario_id',
+    'nombre_completo',
+    'ci',
+    'telefono',
+    'email',
+    'fecha_nacimiento',
+    'direccion',
+  ]);
 
 const normalizeCitaPayload = (body: AnyPayload) => ({
   ...pickPayload(body, [
     'paciente_id',
     'medico_id',
     'clinica_id',
-    'especialidad',
+    'especialidad_id',
     'fecha',
     'hora',
     'motivo',
@@ -358,9 +488,6 @@ const normalizeCitaPayload = (body: AnyPayload) => ({
     'notas_doctor',
   ]),
   ...(body.estado !== undefined ? { estado: toDbAppointmentStatus(body.estado) } : {}),
-  ...(body.fecha !== undefined && body.hora !== undefined
-    ? { fecha_hora: `${normalizeValue(body.fecha)}T${normalizeValue(body.hora)}:00` }
-    : {}),
 });
 
 const normalizeHistorialPayload = (body: AnyPayload) => ({
@@ -368,7 +495,7 @@ const normalizeHistorialPayload = (body: AnyPayload) => ({
     'paciente_id',
     'diagnostico',
     'severidad',
-    'medico_encargado',
+    'medico_id',
     'descripcion',
     'tratamiento',
     'proxima_cita',
@@ -384,7 +511,7 @@ const normalizeCrudPayload = (table: AllowedTable, body: AnyPayload) => {
       'ci',
       'email',
       'telefono',
-      'especialidad',
+      'especialidad_id',
       'licencia_medica',
       'clinica_id',
       'horario',
@@ -452,42 +579,6 @@ const doctorCanAccessAppointment = async (user: AuthRequest['user'], appointment
   return Boolean(appointment && doctorIds.includes(normalizeValue(appointment.medico_id)));
 };
 
-const resolveDoctorUserIdForAppointment = async (doctorId: unknown) => {
-  const normalizedDoctorId = normalizeValue(doctorId);
-
-  if (!normalizedDoctorId) return null;
-
-  const { data: userDoctor } = await supabase
-    .from('usuarios')
-    .select('id')
-    .eq('id', normalizedDoctorId)
-    .eq('rol', 'medico')
-    .maybeSingle();
-
-  if (userDoctor?.id) return normalizeValue(userDoctor.id);
-
-  const { data: doctorRecord } = await supabase
-    .from('medicos')
-    .select('usuario_id,email')
-    .eq('id', normalizedDoctorId)
-    .maybeSingle();
-
-  if (doctorRecord?.usuario_id) return normalizeValue(doctorRecord.usuario_id);
-
-  if (doctorRecord?.email) {
-    const { data: userByEmail } = await supabase
-      .from('usuarios')
-      .select('id')
-      .ilike('email', doctorRecord.email)
-      .eq('rol', 'medico')
-      .maybeSingle();
-
-    if (userByEmail?.id) return normalizeValue(userByEmail.id);
-  }
-
-  return null;
-};
-
 const rejectIfDoctorCannotAccessAppointment = async (
   req: AuthRequest,
   res: Response
@@ -512,19 +603,24 @@ const getReadOnlyRouter = (table: AllowedTable) => {
   const tableName = allowedTables[table];
 
   readOnly.get('/', async (_req, res) => {
-    const { data, error } = await supabase.from(tableName).select('*').order('created_at', {
+    const selectColumns = table === 'medicos' ? doctorSelect : '*';
+    const { data, error } = await supabase.from(tableName).select(selectColumns).order('created_at', {
       ascending: false,
     });
 
     if (error) return res.status(500).json({ success: false, message: error.message });
-    return res.json({ success: true, data });
+    return res.json({
+      success: true,
+      data: table === 'medicos' ? mapDoctorsFromDb(data) : data,
+    });
   });
 
   readOnly.get('/:id', async (req, res) => {
-    const { data, error } = await supabase.from(tableName).select('*').eq('id', req.params.id).single();
+    const selectColumns = table === 'medicos' ? doctorSelect : '*';
+    const { data, error } = await supabase.from(tableName).select(selectColumns).eq('id', req.params.id).single();
 
     if (error) return res.status(404).json({ success: false, message: error.message });
-    return res.json({ success: true, data });
+    return res.json({ success: true, data: table === 'medicos' ? mapDoctorFromDb(asPayload(data)) : data });
   });
 
   return readOnly;
@@ -608,19 +704,24 @@ const getCrudRouter = (table: AllowedTable) => {
   const tableName = allowedTables[table];
 
   crud.get('/', async (_req, res) => {
-    const { data, error } = await supabase.from(tableName).select('*').order('created_at', {
+    const selectColumns = table === 'medicos' ? doctorSelect : '*';
+    const { data, error } = await supabase.from(tableName).select(selectColumns).order('created_at', {
       ascending: false,
     });
 
     if (error) return res.status(500).json({ success: false, message: error.message });
-    return res.json({ success: true, data });
+    return res.json({
+      success: true,
+      data: table === 'medicos' ? mapDoctorsFromDb(data) : data,
+    });
   });
 
   crud.get('/:id', async (req, res) => {
-    const { data, error } = await supabase.from(tableName).select('*').eq('id', req.params.id).single();
+    const selectColumns = table === 'medicos' ? doctorSelect : '*';
+    const { data, error } = await supabase.from(tableName).select(selectColumns).eq('id', req.params.id).single();
 
     if (error) return res.status(404).json({ success: false, message: error.message });
-    return res.json({ success: true, data });
+    return res.json({ success: true, data: table === 'medicos' ? mapDoctorFromDb(asPayload(data)) : data });
   });
 
   crud.post('/', async (req, res) => {
@@ -630,14 +731,27 @@ const getCrudRouter = (table: AllowedTable) => {
       return res.status(400).json({ success: false, message: validationError });
     }
 
+    if (table === 'medicos') {
+      const specialtyId = await resolveSpecialtyId(req.body.especialidad_id || req.body.especialidad);
+
+      if (!specialtyId) {
+        return res.status(400).json({ success: false, message: 'Selecciona una especialidad válida' });
+      }
+
+      req.body.especialidad_id = specialtyId;
+    }
+
     const { data, error } = await supabase
       .from(tableName)
       .insert(normalizeCrudPayload(table, req.body))
-      .select('*')
+      .select(table === 'medicos' ? doctorSelect : '*')
       .single();
 
     if (error) return res.status(400).json({ success: false, message: error.message });
-    return res.status(201).json({ success: true, data });
+    return res.status(201).json({
+      success: true,
+      data: table === 'medicos' ? mapDoctorFromDb(asPayload(data)) : data,
+    });
   });
 
   crud.put('/:id', async (req, res) => {
@@ -647,15 +761,28 @@ const getCrudRouter = (table: AllowedTable) => {
       return res.status(400).json({ success: false, message: validationError });
     }
 
+    if (table === 'medicos' && (req.body.especialidad_id || req.body.especialidad)) {
+      const specialtyId = await resolveSpecialtyId(req.body.especialidad_id || req.body.especialidad);
+
+      if (!specialtyId) {
+        return res.status(400).json({ success: false, message: 'Selecciona una especialidad válida' });
+      }
+
+      req.body.especialidad_id = specialtyId;
+    }
+
     const { data, error } = await supabase
       .from(tableName)
       .update(normalizeCrudPayload(table, req.body))
       .eq('id', req.params.id)
-      .select('*')
+      .select(table === 'medicos' ? doctorSelect : '*')
       .single();
 
     if (error) return res.status(400).json({ success: false, message: error.message });
-    return res.json({ success: true, data });
+    return res.json({
+      success: true,
+      data: table === 'medicos' ? mapDoctorFromDb(asPayload(data)) : data,
+    });
   });
 
   crud.delete('/:id', async (req, res) => {
@@ -691,12 +818,12 @@ router.get('/admin/dashboard', authorizeRoles('admin'), async (_req, res) => {
     supabase.from('usuarios').select('id', { count: 'exact', head: true }),
     supabase
       .from('pacientes')
-      .select('id,nombre_completo,nombre_apellido,ci,dni_nie,telefono,email,created_at')
+      .select('id,nombre_completo,ci,telefono,email,created_at')
       .order('created_at', { ascending: false })
       .limit(25),
     supabase
       .from('medicos')
-      .select('id,nombre_completo,email,telefono,especialidad,licencia_medica,clinica_id,activo,created_at')
+      .select(doctorSelect)
       .order('created_at', { ascending: false })
       .limit(25),
     supabase
@@ -706,11 +833,11 @@ router.get('/admin/dashboard', authorizeRoles('admin'), async (_req, res) => {
       .limit(25),
     supabase
       .from('citas')
-      .select('*')
+      .select(appointmentSelect)
       .eq('fecha', today)
       .order('hora', { ascending: true })
       .limit(25),
-    supabase.from('citas').select('*').order('created_at', { ascending: false }).limit(25),
+    supabase.from('citas').select(appointmentSelect).order('created_at', { ascending: false }).limit(25),
     supabase
       .from('usuarios')
       .select('id,nombre_completo,email,rol,activo,ultimo_login,created_at')
@@ -719,10 +846,10 @@ router.get('/admin/dashboard', authorizeRoles('admin'), async (_req, res) => {
   ]);
 
   const patientRows = asArray(patients.data);
-  const doctorRows = asArray(doctors.data);
+  const doctorRows = mapDoctorsFromDb(doctors.data);
   const clinicRows = asArray(clinics.data);
-  const appointmentRows = mapCitasFromDb(asArray(appointments.data));
-  const appointmentTodayRows = mapCitasFromDb(asArray(appointmentsToday.data));
+  const appointmentRows = mapCitasFromDb(appointments.data);
+  const appointmentTodayRows = mapCitasFromDb(appointmentsToday.data);
   const userRows = asArray(users.data);
 
   return res.json({
@@ -844,20 +971,20 @@ router.get('/reception/dashboard', authorizeRoles('recepcionista'), async (_req,
     supabase.from('citas').select('id', { count: 'exact', head: true }).in('estado', ['pending', 'confirmed']),
     supabase
       .from('pacientes')
-      .select('id,nombre_completo,nombre_apellido,ci,dni_nie,telefono,email,created_at')
+      .select('id,nombre_completo,ci,telefono,email,created_at')
       .order('created_at', { ascending: false })
       .limit(25),
-    supabase.from('citas').select('*').order('created_at', { ascending: false }).limit(25),
-    supabase.from('citas').select('*').eq('fecha', today).order('hora', { ascending: true }).limit(25),
-    supabase.from('medicos').select('id,nombre_completo,especialidad,created_at').limit(50),
+    supabase.from('citas').select(appointmentSelect).order('created_at', { ascending: false }).limit(25),
+    supabase.from('citas').select(appointmentSelect).eq('fecha', today).order('hora', { ascending: true }).limit(25),
+    supabase.from('medicos').select(doctorSelect).limit(50),
     supabase.from('clinicas').select('id,nombre,created_at').limit(50),
   ]);
 
   const patientRows = asArray(patients.data);
-  const doctorRows = asArray(doctors.data);
+  const doctorRows = mapDoctorsFromDb(doctors.data);
   const clinicRows = asArray(clinics.data);
-  const appointmentRows = mapCitasFromDb(asArray(appointments.data));
-  const appointmentTodayRows = mapCitasFromDb(asArray(appointmentsToday.data));
+  const appointmentRows = mapCitasFromDb(appointments.data);
+  const appointmentTodayRows = mapCitasFromDb(appointmentsToday.data);
 
   return res.json({
     success: true,
@@ -888,7 +1015,7 @@ router.get('/doctor/dashboard', authorizeRoles('medico'), async (req: AuthReques
 
   const { data: appointments, error: appointmentsError } = await supabase
     .from('citas')
-    .select('*')
+    .select(appointmentSelect)
     .in('medico_id', doctorIds)
     .order('fecha', { ascending: false })
     .order('hora', { ascending: true })
@@ -898,20 +1025,20 @@ router.get('/doctor/dashboard', authorizeRoles('medico'), async (req: AuthReques
     return res.status(500).json({ success: false, message: appointmentsError.message });
   }
 
-  const appointmentRows = mapCitasFromDb(asArray(appointments));
+  const appointmentRows = mapCitasFromDb(appointments);
   const patientIds = Array.from(new Set(appointmentRows.map((appointment) => normalizeValue(appointment.paciente_id)).filter(Boolean)));
 
   const [{ data: patients }, { data: histories }] = await Promise.all([
     patientIds.length > 0
       ? supabase
           .from('pacientes')
-          .select('id,nombre_completo,nombre_apellido,ci,dni_nie,telefono,email,created_at')
+          .select('id,nombre_completo,ci,telefono,email,created_at')
           .in('id', patientIds)
       : Promise.resolve({ data: [] as AnyPayload[] }),
     patientIds.length > 0
       ? supabase
           .from('consultas_medicas')
-          .select('*')
+          .select(medicalHistorySelect)
           .in('paciente_id', patientIds)
           .order('created_at', { ascending: false })
           .limit(25)
@@ -919,7 +1046,7 @@ router.get('/doctor/dashboard', authorizeRoles('medico'), async (req: AuthReques
   ]);
 
   const patientRows = asArray(patients as AnyPayload[] | null);
-  const historyRows = asArray(histories as AnyPayload[] | null);
+  const historyRows = mapMedicalHistoriesFromDb(histories);
   const patientLookup = buildLookup(patientRows);
   const todayAppointments = appointmentRows.filter((appointment) => normalizeValue(appointment.fecha) === today);
   const recentActivity = [
@@ -963,7 +1090,7 @@ router.post('/admin/doctors', authorizeRoles('admin'), async (req, res) => {
     ci: normalizeValue(req.body.ci),
     email,
     telefono: normalizeValue(req.body.telefono),
-    especialidad: normalizeValue(req.body.especialidad),
+    especialidad: normalizeValue(req.body.especialidad_id || req.body.especialidad),
     licencia_medica: normalizeValue(req.body.licencia_medica),
     clinica_id: normalizeValue(req.body.clinica_id),
     horario: normalizeValue(req.body.horario),
@@ -993,6 +1120,16 @@ router.post('/admin/doctors', authorizeRoles('admin'), async (req, res) => {
   }
 
   try {
+    const specialtyId = await resolveSpecialtyId(doctorInput.especialidad);
+
+    if (!specialtyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Selecciona una especialidad válida',
+        field: 'specialty',
+      });
+    }
+
     const existingUser = await firstByEmail('usuarios', email);
 
     if (existingUser) {
@@ -1039,10 +1176,18 @@ router.post('/admin/doctors', authorizeRoles('admin'), async (req, res) => {
     const { data: doctor, error } = await supabase
       .from('medicos')
       .insert({
-        ...doctorInput,
+        nombre_completo: doctorInput.nombre_completo,
+        ci: doctorInput.ci,
+        email: doctorInput.email,
+        telefono: doctorInput.telefono,
+        especialidad_id: specialtyId,
+        licencia_medica: doctorInput.licencia_medica,
+        clinica_id: doctorInput.clinica_id,
+        horario: doctorInput.horario,
+        activo: doctorInput.activo,
         usuario_id: user.id,
       })
-      .select('*')
+      .select(doctorSelect)
       .single();
 
     if (error) {
@@ -1057,7 +1202,7 @@ router.post('/admin/doctors', authorizeRoles('admin'), async (req, res) => {
     return res.status(201).json({
       success: true,
       message: 'Médico y usuario registrados correctamente',
-      data: { user, doctor },
+      data: { user, doctor: mapDoctorFromDb(asPayload(doctor)) },
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'EMAIL_ALREADY_EXISTS') {
@@ -1076,7 +1221,7 @@ router.post('/admin/doctors', authorizeRoles('admin'), async (req, res) => {
 });
 
 router.get('/citas', authorizeRoles('admin', 'recepcionista', 'medico'), async (req: AuthRequest, res) => {
-  let query = supabase.from('citas').select('*').order('fecha', { ascending: false });
+  let query = supabase.from('citas').select(appointmentSelect).order('fecha', { ascending: false });
 
   if (req.user?.rol === 'medico') {
     const doctorIds = await getDoctorIdsForUser(
@@ -1088,7 +1233,7 @@ router.get('/citas', authorizeRoles('admin', 'recepcionista', 'medico'), async (
 
   const { data, error } = await query;
   if (error) return res.status(500).json({ success: false, message: error.message });
-  return res.json(mapCitasFromDb(data || []));
+  return res.json(mapCitasFromDb(data));
 });
 
 router.post('/citas', authorizeRoles('admin', 'recepcionista', 'medico'), async (req: AuthRequest, res) => {
@@ -1105,16 +1250,16 @@ router.post('/citas', authorizeRoles('admin', 'recepcionista', 'medico'), async 
     return res.status(400).json({ success: false, message: 'Selecciona un médico válido' });
   }
 
-  const resolvedDoctorUserId = await resolveDoctorUserIdForAppointment(payload.medico_id);
+  const resolvedDoctorId = await resolveDoctorIdForAppointment(payload.medico_id);
 
-  if (!resolvedDoctorUserId) {
+  if (!resolvedDoctorId) {
     return res.status(400).json({
       success: false,
-      message: 'El médico seleccionado no está vinculado a un usuario médico activo',
+      message: 'Selecciona un médico registrado y activo',
     });
   }
 
-  payload.medico_id = resolvedDoctorUserId;
+  payload.medico_id = resolvedDoctorId;
 
   if (!normalizeValue(payload.clinica_id)) {
     return res.status(400).json({ success: false, message: 'Selecciona una clínica válida' });
@@ -1145,6 +1290,17 @@ router.post('/citas', authorizeRoles('admin', 'recepcionista', 'medico'), async 
     }
   }
 
+  const specialtyId = await resolveSpecialtyId(payload.especialidad_id || payload.especialidad, payload.medico_id);
+
+  if (!specialtyId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Selecciona una especialidad válida',
+    });
+  }
+
+  payload.especialidad_id = specialtyId;
+
   const normalizedPayload = normalizeCitaPayload(payload);
 
   const { data: occupiedSlot } = await supabase
@@ -1153,7 +1309,7 @@ router.post('/citas', authorizeRoles('admin', 'recepcionista', 'medico'), async 
     .eq('medico_id', payload.medico_id)
     .eq('fecha', payload.fecha)
     .eq('hora', payload.hora)
-    .in('estado', ['pending', 'confirmed', 'pendiente', 'confirmada'])
+    .in('estado', ['pending', 'confirmed'])
     .maybeSingle();
 
   if (occupiedSlot) {
@@ -1163,20 +1319,24 @@ router.post('/citas', authorizeRoles('admin', 'recepcionista', 'medico'), async 
     });
   }
 
-  const { data, error } = await supabase.from('citas').insert(normalizedPayload).select('*').single();
+  const { data, error } = await supabase
+    .from('citas')
+    .insert(normalizedPayload)
+    .select(appointmentSelect)
+    .single();
   if (error) return res.status(400).json({ success: false, message: error.message });
-  return res.status(201).json(mapCitaFromDb(data));
+  return res.status(201).json(mapCitaFromDb(asPayload(data)));
 });
 
 router.get('/citas/paciente/:id', async (req, res) => {
   const { data, error } = await supabase
     .from('citas')
-    .select('*')
+    .select(appointmentSelect)
     .eq('paciente_id', req.params.id)
     .order('fecha', { ascending: false });
 
   if (error) return res.status(500).json({ success: false, message: error.message });
-  return res.json(mapCitasFromDb(data || []));
+  return res.json(mapCitasFromDb(data));
 });
 
 router.get('/citas/medico/:id', async (req, res) => {
@@ -1195,7 +1355,7 @@ router.get('/citas/medico/:id', async (req, res) => {
 
   let query = supabase
     .from('citas')
-    .select('*')
+    .select(appointmentSelect)
     .in('medico_id', Array.from(doctorIds))
     .order('hora');
 
@@ -1205,7 +1365,7 @@ router.get('/citas/medico/:id', async (req, res) => {
 
   const { data, error } = await query;
   if (error) return res.status(500).json({ success: false, message: error.message });
-  return res.json(mapCitasFromDb(data || []));
+  return res.json(mapCitasFromDb(data));
 });
 
 router.patch('/citas/:id/estado', authorizeRoles('admin', 'recepcionista', 'medico'), async (req: AuthRequest, res) => {
@@ -1231,11 +1391,11 @@ router.patch('/citas/:id/estado', authorizeRoles('admin', 'recepcionista', 'medi
     .from('citas')
     .update(normalizeCitaPayload({ estado: nextStatus }))
     .eq('id', req.params.id)
-    .select('*')
+    .select(appointmentSelect)
     .single();
 
   if (error) return res.status(400).json({ success: false, message: error.message });
-  return res.json(mapCitaFromDb(data));
+  return res.json(mapCitaFromDb(asPayload(data)));
 });
 
 router.patch('/citas/:id/notas', authorizeRoles('medico', 'admin'), async (req: AuthRequest, res) => {
@@ -1245,11 +1405,11 @@ router.patch('/citas/:id/notas', authorizeRoles('medico', 'admin'), async (req: 
     .from('citas')
     .update({ notas_doctor: req.body.notas_doctor })
     .eq('id', req.params.id)
-    .select('*')
+    .select(appointmentSelect)
     .single();
 
   if (error) return res.status(400).json({ success: false, message: error.message });
-  return res.json(mapCitaFromDb(data));
+  return res.json(mapCitaFromDb(asPayload(data)));
 });
 
 router.put('/citas/:id', authorizeRoles('admin', 'recepcionista', 'medico'), async (req: AuthRequest, res) => {
@@ -1293,7 +1453,7 @@ router.put('/citas/:id', authorizeRoles('admin', 'recepcionista', 'medico'), asy
       });
     }
 
-    const allowedFields = ['paciente_id', 'medico_id', 'clinica_id', 'especialidad', 'fecha', 'hora', 'estado'];
+    const allowedFields = ['paciente_id', 'medico_id', 'clinica_id', 'especialidad', 'especialidad_id', 'fecha', 'hora', 'estado'];
     req.body = Object.fromEntries(
       Object.entries(req.body).filter(([key]) => allowedFields.includes(key))
     );
@@ -1313,15 +1473,55 @@ router.put('/citas/:id', authorizeRoles('admin', 'recepcionista', 'medico'), asy
     });
   }
 
+  if (req.body.medico_id !== undefined) {
+    const resolvedDoctorId = await resolveDoctorIdForAppointment(req.body.medico_id);
+
+    if (!resolvedDoctorId) {
+      return res.status(400).json({ success: false, message: 'Selecciona un médico registrado y activo' });
+    }
+
+    if (req.user?.rol === 'medico') {
+      const doctorIds = await getDoctorIdsForUser(
+        normalizeValue(req.user.id),
+        normalizeValue(req.user.email)
+      );
+
+      if (!doctorIds.includes(resolvedDoctorId)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Como médico solo puedes editar citas en tu propia agenda',
+        });
+      }
+    }
+
+    req.body.medico_id = resolvedDoctorId;
+  }
+
+  if (req.body.especialidad !== undefined || req.body.especialidad_id !== undefined) {
+    const specialtyId = await resolveSpecialtyId(
+      req.body.especialidad_id || req.body.especialidad,
+      req.body.medico_id
+    );
+
+    if (!specialtyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Selecciona una especialidad válida',
+      });
+    }
+
+    req.body.especialidad_id = specialtyId;
+  }
+
   const { data, error } = await supabase
     .from('citas')
     .update(normalizeCitaPayload(req.body))
     .eq('id', req.params.id)
-    .select('*')
+    .select(appointmentSelect)
     .single();
 
   if (error) return res.status(400).json({ success: false, message: error.message });
-  return res.json(mapCitaFromDb(data));
+  return res.json(mapCitaFromDb(asPayload(data)));
 });
 
 router.delete('/citas/:id', authorizeRoles('admin'), async (req, res) => {
@@ -1333,47 +1533,59 @@ router.delete('/citas/:id', authorizeRoles('admin'), async (req, res) => {
 router.get('/historial/paciente/:id', async (req, res) => {
   const { data, error } = await supabase
     .from('consultas_medicas')
-    .select('*')
+    .select(medicalHistorySelect)
     .eq('paciente_id', req.params.id)
     .order('created_at', { ascending: false });
 
   if (error) return res.status(500).json({ success: false, message: error.message });
-  return res.json(data || []);
+  return res.json(mapMedicalHistoriesFromDb(data));
 });
 
-router.post('/historial', authorizeRoles('medico', 'admin'), async (req, res) => {
+router.post('/historial', authorizeRoles('medico', 'admin'), async (req: AuthRequest, res) => {
   const validationError = validateHistorialPayload(req.body);
 
   if (validationError) {
     return res.status(400).json({ success: false, message: validationError });
   }
 
+  if (req.user?.rol === 'medico') {
+    req.body.medico_id = await resolveDoctorIdForAppointment(req.user.id);
+  } else if (req.body.medico_id !== undefined) {
+    req.body.medico_id = await resolveDoctorIdForAppointment(req.body.medico_id);
+  }
+
   const { data, error } = await supabase
     .from('consultas_medicas')
     .insert(normalizeHistorialPayload(req.body))
-    .select('*')
+    .select(medicalHistorySelect)
     .single();
 
   if (error) return res.status(400).json({ success: false, message: error.message });
-  return res.status(201).json(data);
+  return res.status(201).json(mapMedicalHistoryFromDb(asPayload(data)));
 });
 
-router.put('/historial/:id', authorizeRoles('medico', 'admin'), async (req, res) => {
+router.put('/historial/:id', authorizeRoles('medico', 'admin'), async (req: AuthRequest, res) => {
   const validationError = validateHistorialPayload(req.body, true);
 
   if (validationError) {
     return res.status(400).json({ success: false, message: validationError });
   }
 
+  if (req.user?.rol === 'medico') {
+    req.body.medico_id = await resolveDoctorIdForAppointment(req.user.id);
+  } else if (req.body.medico_id !== undefined) {
+    req.body.medico_id = await resolveDoctorIdForAppointment(req.body.medico_id);
+  }
+
   const { data, error } = await supabase
     .from('consultas_medicas')
     .update(normalizeHistorialPayload(req.body))
     .eq('id', req.params.id)
-    .select('*')
+    .select(medicalHistorySelect)
     .single();
 
   if (error) return res.status(400).json({ success: false, message: error.message });
-  return res.json(data);
+  return res.json(mapMedicalHistoryFromDb(asPayload(data)));
 });
 
 router.use('/pacientes', authorizeRoles('admin', 'recepcionista', 'medico'), getPacienteRouter());

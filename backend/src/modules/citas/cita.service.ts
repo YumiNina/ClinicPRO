@@ -1,5 +1,6 @@
 import { In, type Repository } from 'typeorm';
 import { type Cita, CitaEstado } from './cita.entity';
+import { logger } from '../../utils/logger';
 
 // Dependencia inyectada o obtenida desde AppDataSource en la implementación real
 export class CitaService {
@@ -26,7 +27,7 @@ export class CitaService {
     const citaExistente = await this.citaRepo.findOne({
       where: {
         paciente_id: data.paciente_id,
-        especialidad: data.especialidad,
+        especialidad_id: data.especialidad_id,
         fecha: data.fecha,
         estado: CitaEstado.PENDING, // Asumiendo que comprobamos solo citas no completadas/canceladas
       },
@@ -121,8 +122,8 @@ export class CitaService {
       paciente_id: cita.paciente_id,
       diagnostico: 'Cita cancelada',
       severidad: lateCancellation ? 'moderado' : 'leve',
-      medico_encargado: cita.medico_id,
-      descripcion: `Cancelacion de cita de ${cita.especialidad} para ${cita.fecha} a las ${cita.hora}.`,
+      medico_id: cita.medico_id,
+      descripcion: `Cancelacion de cita para ${cita.fecha} a las ${cita.hora}.`,
       tratamiento: 'Sin tratamiento por cancelacion',
       proxima_cita: cita.fecha,
     };
@@ -138,13 +139,20 @@ export class CitaService {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        console.error(
-          'No se pudo registrar cancelacion en historial:',
-          errorBody,
-        );
+        logger.warn('external_service.historial_cancellation_failed', {
+          service: 'historial-service',
+          statusCode: response.status,
+          errorMessage: 'Historial service returned a non-success response.',
+          responseBodyLength: errorBody.length,
+          citaId: cita.id,
+        });
       }
     } catch (error) {
-      console.error('Error enviando cancelacion a historial-service:', error);
+      logger.error('external_service.historial_cancellation_error', {
+        service: 'historial-service',
+        citaId: cita.id,
+        error,
+      });
     }
   }
 }
