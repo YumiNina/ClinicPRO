@@ -1,0 +1,18 @@
+project_name = "clinicpro"
+environment  = "dev"
+region       = "us-east-1"
+app_name     = "clinicpro"
+app_port     = 3001
+domain_name  = "example.com"
+image_tag    = "latest"
+database_name = "clinicpro"
+
+allowed_origins = [
+  "http://localhost:5174",
+  "https://clinicpro-frontend.example.com"
+]
+
+# Sensitive placeholders only. Do not put real values in files committed to Git.
+database_url = "CONFIGURAR_COMO_SECRETO_NO_SUBIR_VALOR_REAL"
+jwt_secret   = "CONFIGURAR_COMO_SECRETO_NO_SUBIR_VALOR_REAL"
+api_key      = "CONFIGURAR_COMO_SECRETO_NO_SUBIR_VALOR_REAL"
