@@ -4,6 +4,8 @@ Sistema de gestión clínica y administrativa desarrollado con React, Express, T
 
 Clinic Pro incluye autenticación JWT, roles, gestión de citas, datos clínicos, paneles por perfil y conexión con Supabase.
 
+Nota de Pull Request: cambio como prueba para validar el flujo de revisión y CI/CD.
+
 ## Problemática
 
 Muchas clínicas pequeñas y medianas todavía gestionan pacientes, citas y registros operativos con hojas de cálculo, mensajes sueltos o procesos manuales. Esto genera información duplicada, dificultad para saber qué citas están confirmadas, poca trazabilidad sobre quién modificó un registro y riesgo de que usuarios con roles distintos accedan a funciones que no les corresponden.
@@ -251,7 +253,9 @@ Variables esperadas:
 ```env
 PORT=3001
 NODE_ENV=development
+LOG_LEVEL=debug
 FRONTEND_URL=http://localhost:5174
+ALLOWED_ORIGINS=http://localhost:5174
 
 JWT_ACCESS_SECRET=replace_me
 JWT_REFRESH_SECRET=replace_me
@@ -263,6 +267,7 @@ SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
 
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT.supabase.co:5432/postgres
+HISTORIAL_API_URL=http://historial-service:3002/api
 ```
 
 No subas archivos `.env` reales al repositorio.
@@ -393,6 +398,8 @@ Después de que Supabase devuelve el usuario de Google, Clinic Pro valida el cor
 
 ```txt
 POST /api/auth/google/session
+
+Nota de prueba: PR de prueba 7 — validación de flujo y permisos.
 ```
 
 Reglas del flujo:
@@ -592,6 +599,590 @@ Evidencia para defensa:
 - Mostrar que `delivery` corre después de `validate` y que no se ejecuta si `validate` falla.
 
 El pipeline garantiza que, antes de unir cambios a `main`, frontend y backend instalan dependencias con lockfile, pasan validaciones, ejecutan pruebas, compilan correctamente y generan una salida verificable.
+
+## Final Demo Readiness - ISW-331
+
+Estado honesto para rubrica final:
+
+- URL publica frontend: `https://clinicpro-frontend-sph9.onrender.com`.
+- URL publica backend: `https://clinicpro-backend-85ho.onrender.com`.
+- Plataforma preparada: Render mediante `render.yaml`.
+- Base de datos: Supabase PostgreSQL.
+- Demo final requerida: debe ejecutarse sobre una URL publica real, no solo local.
+
+El proyecto ya tiene frontend y backend publicados en Render. El backend fue verificado con `/api/health` y el frontend responde `200` por HTTPS. Para cerrar la demo final, prueba manualmente el flujo principal de login, dashboards y citas desde la URL publica del frontend.
+
+Archivo de defensa final:
+
+```txt
+DEFENSA_FINAL.md
+```
+
+Arquitectura general:
+
+```txt
+Navegador
+  -> Frontend React/Vite
+  -> Backend Express/TypeScript
+  -> Supabase PostgreSQL
+```
+
+Flujo principal para demo:
+
+1. Abrir la URL publica del frontend.
+2. Iniciar sesion con un usuario demo.
+3. Mostrar dashboard segun rol.
+4. Registrar o consultar pacientes.
+5. Crear o consultar una cita.
+6. Entrar como medico y revisar agenda/historial.
+7. Confirmar persistencia refrescando la vista.
+8. Probar health check del backend.
+
+Build commands:
+
+```bash
+cd backend
+npm run build
+
+cd ../frontend
+npm run build
+```
+
+Start command backend:
+
+```bash
+cd backend
+npm run start
+```
+
+Instalacion local:
+
+```bash
+cd backend
+npm ci
+
+cd ../frontend
+npm ci
+```
+
+Tests y auditoria:
+
+```bash
+cd backend
+npm test
+npm run test:smoke
+npm run audit
+
+cd ../frontend
+npm test
+npm run test:smoke
+npm run audit
+```
+
+Docker local:
+
+```bash
+docker compose up --build
+docker compose logs -f backend
+docker compose down
+```
+
+Health check:
+
+```bash
+curl http://localhost:3001/api/health
+curl https://clinicpro-backend-85ho.onrender.com/api/health
+```
+
+Deployment preparado en Render:
+
+- `render.yaml` define `clinicpro-backend` como servicio Node.
+- `render.yaml` define `clinicpro-frontend` como sitio static.
+- Backend build: `npm ci --include=dev && npm run build`.
+- Backend start: `npm run start`.
+- Frontend build: `cd frontend && npm ci && npm run build`.
+- Frontend publish path: `frontend/dist`.
+- Backend health check: `/api/health`.
+
+Variables y secretos:
+
+| Variable | Tipo | Donde configurar | Nota |
+|---|---|---|---|
+| `FRONTEND_URL` | Configuracion | Backend cloud env | URL publica frontend |
+| `ALLOWED_ORIGINS` | Configuracion | Backend cloud env | Allowlist CORS |
+| `JWT_ACCESS_SECRET` | Secreto | Backend cloud env | No versionar |
+| `JWT_REFRESH_SECRET` | Secreto | Backend cloud env | No versionar |
+| `SUPABASE_URL` | Configuracion | Backend cloud env | Proyecto Supabase |
+| `SUPABASE_ANON_KEY` | Secreto/config | Backend cloud env | No imprimir en logs |
+| `SUPABASE_SERVICE_ROLE_KEY` | Secreto | Backend cloud env | No versionar |
+| `DATABASE_URL` | Secreto | Backend cloud env | Conexion Postgres |
+| `VITE_API_AUTH` | Configuracion publica | Frontend cloud env | URL backend `/api` |
+| `VITE_API_CITAS` | Configuracion publica | Frontend cloud env | URL backend `/api` |
+| `VITE_API_HISTORIAL` | Configuracion publica | Frontend cloud env | URL backend `/api` |
+
+Usa `.env.example`, `backend/.env.example` y `frontend/.env.example` como referencia. Los archivos `.env` reales no deben subirse al repositorio.
+
+CI/CD:
+
+- `.github/workflows/ci.yml` corre en `pull_request`, `push` a `main` y `workflow_dispatch`.
+- El workflow reutilizable instala dependencias, corre `npm audit`, lint, tests, smoke tests, build y sube artefactos.
+- `.github/workflows/docker-ci.yml` valida en contenedor y construye imagenes Docker.
+- El deploy real sigue pendiente; actualmente hay delivery simulation y blueprint Render.
+
+Logs:
+
+- Local: consola de `npm run dev` o `npm run start`.
+- Docker: `docker compose logs -f backend`.
+- Cloud: panel de logs del servicio backend en Render u otra plataforma.
+- Buscar por `requestId`, `message`, `route`, `statusCode`.
+
+Diagnostico rapido:
+
+- Si el backend no inicia: revisar `PORT`, `JWT_*`, `SUPABASE_*`, `DATABASE_URL` y start command.
+- Si el frontend abre pero no carga datos: revisar `VITE_API_*`, CORS y URL backend.
+- Si login falla: revisar JWT secrets, usuarios seed/demo y conexion Supabase.
+- Si health falla: revisar logs de backend y variables de entorno.
+- Si CORS falla: revisar `FRONTEND_URL` y `ALLOWED_ORIGINS`.
+
+Configuracion manual pendiente:
+
+1. Crear servicios Render desde `render.yaml`.
+2. Cargar secretos y variables reales.
+3. Configurar Supabase y aplicar schema.
+4. Configurar `VITE_API_*` con URL backend publica.
+5. Probar `/api/health` publico.
+6. Probar flujo principal sobre URL publica.
+7. Actualizar README y `DEFENSA_FINAL.md` con URLs reales.
+
+## Web Security
+
+ClinicPRO incluye una revision basica y defendible para Week 18. La revision reduce riesgos comunes, pero no garantiza seguridad absoluta. La evidencia detallada esta en:
+
+```txt
+SECURITY_REVIEW.md
+```
+
+Assets protegidos:
+
+- Usuarios internos de la clinica.
+- Password hashes.
+- Access tokens y refresh tokens.
+- Datos personales de pacientes, medicos y usuarios.
+- Datos administrativos.
+- Configuracion de despliegue y variables sensibles.
+- Base de datos Supabase PostgreSQL.
+
+Entry points revisados:
+
+- Login, registro, logout y refresh.
+- Google session y registro de recepcionista con Google.
+- Formularios de pacientes, medicos, clinicas, citas e historial.
+- JSON request bodies.
+- Parametros URL como `:id`.
+- Panel admin y endpoints protegidos bajo `/api`.
+- Health check y metrics endpoints.
+
+Controles existentes:
+
+- Password hashing con bcrypt.
+- JWT con expiracion configurable.
+- Refresh token guardado como hash.
+- Middleware `authMiddleware` para rutas privadas.
+- Middleware `authorizeRoles` para separar `admin`, `medico` y `recepcionista`.
+- Validacion Zod en autenticacion.
+- Validaciones manuales en endpoints de datos.
+- Supabase query builder y whitelists de tablas/campos para reducir injection.
+- Logger estructurado con redaccion de campos sensibles.
+- Error handler centralizado.
+- `.env` ignorado y `.env.example` con placeholders.
+
+Fixes de seguridad agregados para Week 18:
+
+| Fix | Riesgo reducido | Evidencia |
+|---|---|---|
+| Security headers | Clickjacking, MIME sniffing, leakage de referrer y permisos del navegador | `backend/src/middleware/security.middleware.ts` |
+| Rate limiting en auth | Fuerza bruta y abuso de endpoints publicos | `backend/src/modules/auth/auth.routes.ts` |
+| Validacion UUID de `:id` | Inputs invalidos antes de llegar a DB | `backend/src/middleware/security.middleware.ts`, `backend/src/modules/data/data.routes.ts` |
+| CORS explicito | Origenes y headers demasiado amplios | `backend/src/server.ts` |
+| Dependency audit | Dependencias vulnerables sin revision | `backend/package.json`, `frontend/package.json`, workflows |
+| Dependency audit fix | Vulnerabilidades conocidas en dependencias npm | `backend/package-lock.json`, `frontend/package-lock.json` |
+
+Secretos:
+
+- Los secretos reales deben vivir en `.env` local, Render, GitHub Secrets o un secret manager.
+- `.env` y `.env.*` estan ignorados por Git.
+- `backend/.env.example` solo contiene placeholders.
+- No se deben poner secretos en variables `VITE_*` porque el frontend las expone al navegador.
+
+Validacion de entradas:
+
+- Auth usa Zod en `backend/src/modules/auth/auth.schema.ts`.
+- Datos clinicos/administrativos usan validaciones manuales en `backend/src/modules/data/data.routes.ts`.
+- Los parametros `:id` se validan como UUID antes de consultar Supabase.
+- Los payloads se normalizan con whitelists, evitando aceptar campos arbitrarios.
+
+Rutas protegidas:
+
+- `/api/auth/login`, `/api/auth/register`, `/api/auth/refresh` y Google auth son publicas pero tienen rate limit.
+- El resto de `/api` pasa por `authMiddleware`.
+- Endpoints sensibles usan `authorizeRoles`.
+- CORS no reemplaza autenticacion ni autorizacion.
+
+XSS, CSRF e injection:
+
+- React escapa texto por defecto.
+- No se observo renderizado de HTML no confiable desde usuarios.
+- La autenticacion usa `Authorization: Bearer`, por lo que el CSRF clasico de cookies automaticas es menos probable.
+- Si se migran tokens a cookies HttpOnly, se debe agregar proteccion CSRF/SameSite.
+- El acceso a DB usa Supabase query builder y whitelists, no SQL concatenado desde input.
+
+Dependency scan:
+
+```bash
+cd backend
+npm run audit
+
+cd ../frontend
+npm run audit
+```
+
+Despues de ejecutar `npm audit fix`, backend y frontend reportaron `found 0 vulnerabilities`.
+
+Verificaciones utiles:
+
+```bash
+cd backend
+npm run build
+npm test
+npm run test:smoke
+```
+
+Con el backend levantado:
+
+```bash
+curl -i http://localhost:3001/api/health
+curl -i -H "x-request-id: sec-demo" http://localhost:3001/api/health
+```
+
+Riesgos pendientes:
+
+- Tokens en `localStorage`; a futuro conviene evaluar refresh token en cookie HttpOnly, Secure y SameSite.
+- Rate limiting en memoria; para produccion multi-instancia conviene Redis o gateway.
+- CSP inicial en API; el frontend productivo puede requerir una CSP especifica.
+- Algunas rutas aun devuelven mensajes de Supabase; a futuro conviene normalizar errores.
+- Falta DAST con OWASP ZAP y escaneo de imagen Docker con Trivy en entorno controlado.
+
+## Monitoring and Logging
+
+ClinicPRO incluye una base de observabilidad para Week 16 en el backend Express.
+
+Stack elegido:
+
+- Logs estructurados JSON propios, sin dependencia externa.
+- Middleware de request logging con `requestId`.
+- Endpoint de salud `GET /api/health`.
+- Endpoint de metricas Prometheus-compatible `GET /api/metrics`.
+- Error handler centralizado para respuestas seguras.
+- Dashboard y alertas documentadas para una plataforma futura.
+
+Se eligio este camino porque es portable, funciona localmente, no requiere cuentas externas ni credenciales reales y puede conectarse despues a Render Logs, Sentry, Prometheus/Grafana, Datadog o New Relic.
+
+Logs generados:
+
+- Inicio de aplicacion: `application.started`.
+- Request recibido: `http.request.received`.
+- Request completado: `http.request.completed`.
+- Ruta no encontrada: `http.route.not_found`.
+- Error no controlado: `http.error.unhandled`.
+- Fallos de autenticacion: `auth.failure`.
+- Fallos de autorizacion: `authorization.failure`.
+- Fallos de servicios externos: `external_service.historial_cancellation_failed` y `external_service.historial_cancellation_error`.
+
+Formato de logs:
+
+```json
+{
+  "level": "info",
+  "message": "http.request.completed",
+  "timestamp": "2026-06-07T00:00:00.000Z",
+  "environment": "development",
+  "requestId": "uuid",
+  "method": "GET",
+  "route": "/api/health",
+  "statusCode": 200,
+  "durationMs": 12.5
+}
+```
+
+Los logs pueden incluir:
+
+- `level`
+- `message`
+- `timestamp`
+- `environment`
+- `requestId`
+- `method`
+- `route`
+- `statusCode`
+- `durationMs`
+- `userId` solo cuando aplica
+- `error.name`
+- `error.message`
+- `error.stack` solo fuera de produccion
+
+No se debe registrar:
+
+- Passwords.
+- Tokens o JWT completos.
+- API keys.
+- Cookies.
+- Cadenas de conexion.
+- Valores completos de `DATABASE_URL`.
+- Cuerpos completos de respuestas externas.
+- Datos clinicos o personales sensibles.
+
+Request ID:
+
+- Si llega `x-request-id`, el backend lo reutiliza.
+- Si no llega, genera uno nuevo.
+- Siempre responde con header `x-request-id`.
+- El mismo valor aparece en logs de request y error.
+
+Health check:
+
+```bash
+curl http://localhost:3001/api/health
+```
+
+Respuesta esperada:
+
+```json
+{
+  "status": "ok",
+  "uptime": 123,
+  "timestamp": "2026-06-07T00:00:00.000Z",
+  "environment": "development"
+}
+```
+
+Metricas:
+
+```bash
+curl http://localhost:3001/api/metrics
+```
+
+Metricas expuestas:
+
+| Metrica | Para que sirve |
+|---|---|
+| `clinicpro_http_requests_total` | Request volume por metodo, ruta y status |
+| `clinicpro_http_errors_total` | Conteo de errores 5xx |
+| `clinicpro_http_request_duration_ms_sum` | Suma de latencias HTTP |
+| `clinicpro_http_request_duration_ms_count` | Cantidad de mediciones de latencia |
+| `clinicpro_auth_failures_total` | Fallos de autenticacion/autorizacion por razon |
+| `clinicpro_process_uptime_seconds` | Uptime del proceso Node.js |
+
+Dashboard propuesto:
+
+| Panel | Fuente | Uso |
+|---|---|---|
+| Requests por minuto | `clinicpro_http_requests_total` | Ver trafico de la aplicacion |
+| Error rate | `clinicpro_http_errors_total / clinicpro_http_requests_total` | Detectar fallos |
+| Latencia promedio o p95 | `clinicpro_http_request_duration_ms_*` | Detectar lentitud |
+| Top exception types | Logs `http.error.unhandled` | Ver errores dominantes |
+| Health status | `/api/health` | Saber si el backend responde |
+| Auth failures | `clinicpro_auth_failures_total` | Detectar problemas de login o permisos |
+
+Alertas propuestas:
+
+| Alerta | Condicion | Accion |
+|---|---|---|
+| Error rate alto | Errores 5xx > 5% durante 5 minutos | Revisar logs `http.error.unhandled`, deploy reciente y conexion a Supabase |
+| Health check fallando | `/api/health` falla durante 3 minutos | Revisar logs de arranque, puerto, variables y disponibilidad del servicio |
+| Latencia alta | p95 > 1500 ms durante 10 minutos | Revisar endpoints lentos, Supabase y servicios externos |
+
+Como diagnosticar una falla:
+
+1. Probar `/api/health`.
+2. Revisar `x-request-id` de la respuesta o del cliente.
+3. Buscar ese `requestId` en logs.
+4. Revisar `statusCode`, `durationMs`, `route` y `error.message`.
+5. Consultar `/api/metrics` para ver volumen, error rate y latencia.
+6. Revisar si hubo deploy reciente o cambio de variables.
+
+Alternativas:
+
+- Managed: Sentry para error tracking; Datadog, New Relic o CloudWatch para logs/metricas/alertas.
+- Open-source: OpenTelemetry + Prometheus + Grafana + Loki.
+
+## Infrastructure as Code with Terraform
+
+El proyecto incluye una carpeta:
+
+```txt
+infra/
+```
+
+El objetivo de Terraform en ClinicPRO es documentar y preparar la infraestructura necesaria para un despliegue cloud reproducible, sin subir credenciales reales ni crear recursos peligrosos. La implementacion actual es una base segura para Week 15.1: define variables, outputs, version minima de Terraform y un plan educativo de infraestructura. Cuando se elija y configure un proveedor cloud real, esta estructura se puede reemplazar o ampliar con recursos del provider correspondiente.
+
+Terraform prepara o documenta:
+
+- Servicio de hosting para backend Node.js.
+- Hosting estatico para frontend React/Vite.
+- Base de datos administrada o conexion externa a Supabase PostgreSQL.
+- Configuracion de CORS, puerto y dominio.
+- DNS, storage, logs y health checks como recursos opcionales.
+
+Comandos basicos:
+
+```bash
+cd infra
+terraform init
+terraform fmt
+terraform validate
+terraform plan
+terraform apply
+```
+
+`terraform plan` permite revisar los cambios antes de aplicarlos. `terraform apply` crea o actualiza infraestructura, por eso debe ejecutarse solo despues de revisar el plan. `terraform destroy` elimina recursos administrados y debe usarse con cuidado.
+
+Terraform state guarda el estado de los recursos administrados. No se debe subir `terraform.tfstate`, `.terraform/` ni `terraform.tfvars` al repositorio porque pueden contener datos internos o sensibles. Los secretos deben configurarse en un secret manager, GitHub Actions secrets, variables protegidas de la plataforma cloud o un `terraform.tfvars` local ignorado por Git.
+
+Terraform no reemplaza el despliegue de la aplicacion. La app todavia necesita build, variables de runtime, publicacion del frontend/backend y smoke test posterior al deploy.
+
+| Archivo | Propósito |
+|---|---|
+| `infra/main.tf` | Define o documenta recursos de infraestructura |
+| `infra/variables.tf` | Define variables reutilizables |
+| `infra/outputs.tf` | Muestra salidas útiles |
+| `infra/versions.tf` | Define versión de Terraform y providers |
+| `infra/terraform.tfvars.example` | Ejemplo seguro de variables |
+
+## Despliegue Cloud - Week 15
+
+El proyecto queda preparado para desplegarse en Render mediante el blueprint versionado en:
+
+```txt
+render.yaml
+```
+
+Render se eligio para esta configuracion porque permite definir infraestructura como codigo desde un monorepo, separar un backend Node.js y un frontend static, configurar variables por servicio, ejecutar health checks HTTP y mantener secretos fuera del repositorio.
+
+Estado actual:
+
+- Base de datos cloud: Supabase PostgreSQL.
+- Plataforma preparada para frontend/backend: Render.
+- URL publica frontend: pendiente de generar al crear el servicio en Render.
+- URL publica backend: pendiente de generar al crear el servicio en Render.
+- HTTPS: Render entrega URLs HTTPS para servicios publicados; debe verificarse despues del deploy real.
+
+Servicios definidos:
+
+- `clinicpro-backend`: servicio web Node.js con `rootDir: backend`.
+- `clinicpro-frontend`: sitio static que publica `frontend/dist`.
+
+Comandos cloud definidos:
+
+Backend:
+
+```bash
+npm ci && npm run build
+npm run start
+```
+
+Frontend:
+
+```bash
+cd frontend && npm ci && npm run build
+```
+
+Health check:
+
+```txt
+GET /api/health
+```
+
+Respuesta esperada:
+
+```json
+{
+  "status": "ok",
+  "uptime": 123,
+  "timestamp": "2026-06-07T00:00:00.000Z"
+}
+```
+
+Variables de configuracion para Render:
+
+```txt
+NODE_ENV=production
+FRONTEND_URL=https://clinicpro-frontend-sph9.onrender.com
+ALLOWED_ORIGINS=https://clinicpro-frontend-sph9.onrender.com
+ACCESS_TOKEN_EXPIRES=15m
+REFRESH_TOKEN_EXPIRES=7d
+HISTORIAL_API_URL=https://clinicpro-backend-85ho.onrender.com/api
+VITE_API_AUTH=https://clinicpro-backend-85ho.onrender.com/api
+VITE_API_CITAS=https://clinicpro-backend-85ho.onrender.com/api
+VITE_API_HISTORIAL=https://clinicpro-backend-85ho.onrender.com/api
+```
+
+Secretos para configurar en Render, no en Git:
+
+```txt
+JWT_ACCESS_SECRET
+JWT_REFRESH_SECRET
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+DATABASE_URL
+```
+
+Separacion entre configuracion y secretos:
+
+- Configuracion: puertos, URLs publicas, expiraciones y modo de ejecucion.
+- Secretos: claves JWT, keys de Supabase y cadena `DATABASE_URL`.
+- El repositorio versiona `.env.example`; los archivos `.env` reales quedan ignorados por `.gitignore`.
+- En `render.yaml`, las variables sensibles usan `sync: false` para obligar a cargarlas en el panel de Render.
+
+Pasos de despliegue:
+
+1. Subir los cambios a GitHub.
+2. En Render, crear un Blueprint desde el repositorio y seleccionar `render.yaml`.
+3. Completar las variables marcadas como `sync: false`.
+4. Esperar el build del backend y frontend.
+5. Copiar las URLs HTTPS generadas por Render.
+6. Actualizar `FRONTEND_URL`, `ALLOWED_ORIGINS` y las variables `VITE_API_*` con las URLs reales.
+7. Redeployar los servicios si se actualizaron variables de build del frontend.
+
+Verificacion post-deploy:
+
+```bash
+curl https://clinicpro-backend-85ho.onrender.com/api/health
+```
+
+Checklist post-deploy:
+
+- [ ] La URL publica del frontend abre por HTTPS.
+- [ ] La URL publica del backend responde por HTTPS.
+- [ ] `GET /api/health` responde `status: ok`.
+- [ ] `FRONTEND_URL` coincide con la URL real del frontend.
+- [ ] `ALLOWED_ORIGINS` incluye la URL real del frontend.
+- [ ] `VITE_API_AUTH`, `VITE_API_CITAS` y `VITE_API_HISTORIAL` apuntan al backend publico.
+- [ ] Los secretos JWT, Supabase y `DATABASE_URL` estan configurados en Render.
+- [ ] Login funciona.
+- [ ] El flujo principal por rol funciona.
+- [ ] Supabase guarda y devuelve datos.
+- [ ] Los logs de Render no muestran errores criticos.
+- [ ] No se imprimen secretos en logs.
+- [ ] No hay errores de CORS en navegador.
+
+Fallos comunes:
+
+- Si el backend no inicia, revisar `PORT`, start command y variables faltantes.
+- Si el frontend carga pero no consulta datos, revisar `VITE_API_*`.
+- Si el navegador bloquea requests, revisar `ALLOWED_ORIGINS` y `FRONTEND_URL`.
+- Si login falla, revisar `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` y conexion a Supabase.
+- Si el health check falla, revisar logs del backend y que `/api/health` responda `2xx`.
 
 ## Dockerized GitHub Actions
 

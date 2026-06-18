@@ -56,7 +56,7 @@ export class CitaController {
       const {
         medico_id,
         clinica_id,
-        especialidad,
+        especialidad_id,
         fecha,
         hora,
         motivo,
@@ -65,7 +65,7 @@ export class CitaController {
       const datosActualizados = {
         medico_id,
         clinica_id,
-        especialidad,
+        especialidad_id,
         fecha,
         hora,
         motivo,
