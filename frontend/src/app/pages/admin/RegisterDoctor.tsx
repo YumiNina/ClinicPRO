@@ -287,7 +287,7 @@ export default function RegisterDoctor() {
                   </SelectTrigger>
                   <SelectContent>
                     {specialties.map((specialty) => (
-                      <SelectItem key={specialty.id} value={specialty.nombre}>
+                      <SelectItem key={specialty.id} value={specialty.id}>
                         {specialty.nombre}
                       </SelectItem>
                     ))}
