@@ -109,7 +109,7 @@ const demoData = {
       ci: '4567890',
       email: 'elena.rivas.demo@clinicpro.test',
       telefono: '70010010',
-      especialidad: 'Medicina General',
+      especialidad_id: '0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a',
       licencia_medica: 'MED-DEMO-001',
       clinica_id: '01010101-0101-4101-8101-010101010101',
       usuario_id: '10101010-1010-4101-8101-101010101010',
@@ -122,7 +122,7 @@ const demoData = {
       ci: '5678901',
       email: 'marco.velasco.demo@clinicpro.test',
       telefono: '70020020',
-      especialidad: 'Cardiologia',
+      especialidad_id: '0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b',
       licencia_medica: 'MED-DEMO-002',
       clinica_id: '01010101-0101-4101-8101-010101010101',
       usuario_id: '20202020-2020-4202-8202-202020202020',
@@ -135,7 +135,7 @@ const demoData = {
       ci: '6789012',
       email: 'lucia.fernandez.demo@clinicpro.test',
       telefono: '70030030',
-      especialidad: 'Pediatria',
+      especialidad_id: '0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c',
       licencia_medica: 'MED-DEMO-003',
       clinica_id: '02020202-0202-4202-8202-020202020202',
       usuario_id: '30303030-3030-4303-8303-303030303030',
@@ -241,8 +241,8 @@ const demoData = {
       paciente_id: '11111111-1111-4111-8111-111111111111',
       medico_id: '20202020-2020-4202-8202-202020202020',
       clinica_id: '01010101-0101-4101-8101-010101010101',
-      especialidad: 'Cardiologia',
-      fecha: '2026-05-15',
+      especialidad_id: '0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b',
+      fecha: '2026-06-03',
       hora: '09:00',
       motivo: 'Control de presion arterial',
       estado: 'confirmed',
@@ -253,8 +253,8 @@ const demoData = {
       paciente_id: '22222222-2222-4222-8222-222222222222',
       medico_id: '10101010-1010-4101-8101-101010101010',
       clinica_id: '01010101-0101-4101-8101-010101010101',
-      especialidad: 'Medicina General',
-      fecha: '2026-05-15',
+      especialidad_id: '0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a',
+      fecha: '2026-06-03',
       hora: '10:30',
       motivo: 'Dolor de cabeza recurrente',
       estado: 'pending',
@@ -265,8 +265,8 @@ const demoData = {
       paciente_id: '33333333-3333-4333-8333-333333333333',
       medico_id: '20202020-2020-4202-8202-202020202020',
       clinica_id: '01010101-0101-4101-8101-010101010101',
-      especialidad: 'Cardiologia',
-      fecha: '2026-05-16',
+      especialidad_id: '0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b',
+      fecha: '2026-06-04',
       hora: '11:00',
       motivo: 'Revision de electrocardiograma',
       estado: 'confirmed',
@@ -277,8 +277,8 @@ const demoData = {
       paciente_id: '77777777-7777-4777-8777-777777777777',
       medico_id: '30303030-3030-4303-8303-303030303030',
       clinica_id: '02020202-0202-4202-8202-020202020202',
-      especialidad: 'Pediatria',
-      fecha: '2026-05-17',
+      especialidad_id: '0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c',
+      fecha: '2026-06-05',
       hora: '15:00',
       motivo: 'Control pediatrico preventivo',
       estado: 'pending',
@@ -289,8 +289,8 @@ const demoData = {
       paciente_id: '88888888-8888-4888-8888-888888888888',
       medico_id: '30303030-3030-4303-8303-303030303030',
       clinica_id: '02020202-0202-4202-8202-020202020202',
-      especialidad: 'Pediatria',
-      fecha: '2026-05-18',
+      especialidad_id: '0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c',
+      fecha: '2026-07-08',
       hora: '16:00',
       motivo: 'Fiebre y tos',
       estado: 'confirmed',
@@ -301,8 +301,8 @@ const demoData = {
       paciente_id: '11111111-1111-4111-8111-111111111111',
       medico_id: '10101010-1010-4101-8101-101010101010',
       clinica_id: '01010101-0101-4101-8101-010101010101',
-      especialidad: 'Medicina General',
-      fecha: '2026-05-10',
+      especialidad_id: '0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a',
+      fecha: '2026-06-09',
       hora: '08:30',
       motivo: 'Consulta general de seguimiento',
       estado: 'completed',
@@ -313,8 +313,8 @@ const demoData = {
       paciente_id: '22222222-2222-4222-8222-222222222222',
       medico_id: '20202020-2020-4202-8202-202020202020',
       clinica_id: '01010101-0101-4101-8101-010101010101',
-      especialidad: 'Cardiologia',
-      fecha: '2026-05-08',
+      especialidad_id: '0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b',
+      fecha: '2026-07-10',
       hora: '09:30',
       motivo: 'Control cardiovascular',
       estado: 'completed',
@@ -325,8 +325,8 @@ const demoData = {
       paciente_id: '44444444-4444-4444-8444-444444444444',
       medico_id: '10101010-1010-4101-8101-101010101010',
       clinica_id: '01010101-0101-4101-8101-010101010101',
-      especialidad: 'Medicina General',
-      fecha: '2026-05-12',
+      especialidad_id: '0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a',
+      fecha: '2026-06-11',
       hora: '12:00',
       motivo: 'Consulta cancelada por paciente',
       estado: 'cancelled',
@@ -339,20 +339,20 @@ const demoData = {
       paciente_id: '11111111-1111-4111-8111-111111111111',
       diagnostico: 'Hipertension arterial controlada',
       severidad: 'moderada',
-      medico_encargado: 'Dra. Elena Rivas Paredes',
+      medico_id: '10101010-1010-4101-8101-101010101010',
       descripcion: 'Paciente acude a control. Signos vitales dentro de rango esperado.',
       tratamiento: 'Continuar medicacion y monitoreo semanal de presion arterial.',
-      proxima_cita: '2026-06-10',
+      proxima_cita: '2026-07-10',
     },
     {
       id: 'b2222222-2222-4222-8222-222222222222',
       paciente_id: '22222222-2222-4222-8222-222222222222',
       diagnostico: 'Riesgo cardiovascular bajo',
       severidad: 'leve',
-      medico_encargado: 'Dr. Marco Antonio Velasco',
+      medico_id: '20202020-2020-4202-8202-202020202020',
       descripcion: 'Control preventivo sin hallazgos de alarma.',
       tratamiento: 'Actividad fisica moderada y control en 30 dias.',
-      proxima_cita: '2026-06-08',
+      proxima_cita: '2026-07-08',
     },
   ],
 };
@@ -376,27 +376,8 @@ const seedWithPostgres = async () => {
   await client.end();
 };
 
-const withLegacyPatientName = (rows) =>
-  rows.map((row) => ({
-    ...row,
-    nombre_apellido: row.nombre_completo,
-    dni_nie: row.ci,
-  }));
-
-const withLegacyAppointmentDate = (rows) =>
-  rows.map((row) => ({
-    ...row,
-    fecha_hora: `${row.fecha}T${row.hora}:00`,
-  }));
-
 const upsertTable = async (supabase, table, rows) => {
-  const rowsToInsert =
-    table === 'pacientes'
-      ? withLegacyPatientName(rows)
-      : table === 'citas'
-        ? withLegacyAppointmentDate(rows)
-        : rows;
-  const { error } = await supabase.from(table).upsert(rowsToInsert, { onConflict: 'id' });
+  const { error } = await supabase.from(table).upsert(rows, { onConflict: 'id' });
 
   if (error) {
     throw new Error(`${table}: ${error.message}`);
